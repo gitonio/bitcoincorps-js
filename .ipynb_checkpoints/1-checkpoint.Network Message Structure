@@ -1,0 +1,623 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 63,
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "SyntaxError",
+     "evalue": "Identifier 'net' has already been declared",
+     "output_type": "error",
+     "traceback": [
+      "evalmachine.<anonymous>:1",
+      "msg = Buffer.from('f9beb4d976657273696f6e00000000006a0000009b228b9e7f1101000f040000000000009341555b000000000f040000000000000000000000000000000000000000000000000f040000000000000000000000000000000000000000000000007256c5439b3aea89142f736f6d652d636f6f6c2d736f6674776172652f0100000001','hex')",
+      "^",
+      "",
+      "SyntaxError: Identifier 'net' has already been declared",
+      "    at evalmachine.<anonymous>:1:1",
+      "    at ContextifyScript.Script.runInThisContext (vm.js:50:33)",
+      "    at Object.runInThisContext (vm.js:139:38)",
+      "    at run ([eval]:1002:15)",
+      "    at onRunRequest ([eval]:829:18)",
+      "    at onMessage ([eval]:789:13)",
+      "    at emitTwo (events.js:126:13)",
+      "    at process.emit (events.js:214:7)",
+      "    at emit (internal/child_process.js:772:12)",
+      "    at _combinedTickCallback (internal/process/next_tick.js:141:11)"
+     ]
+    }
+   ],
+   "source": [
+    "msg = Buffer.from('f9beb4d976657273696f6e00000000006a0000009b228b9e7f1101000f040000000000009341555b000000000f040000000000000000000000000000000000000000000000000f040000000000000000000000000000000000000000000000007256c5439b3aea89142f736f6d652d636f6f6c2d736f6674776172652f0100000001','hex')\n",
+    "//socket.on('connect_error',(error) => {console.log('error',error)})\n",
+    "//socket.send(msg)\n",
+    "//socket.on('event', function(data){});\n",
+    "//socket.on('disconnect', function(){console.log('disconnect')});\n",
+    "\n",
+    "\n",
+    "const net = require('net');\n",
+    "const client = net.createConnection({ port: 8333, host: \"35.187.200.6\" }, () => {\n",
+    "  // 'connect' listener\n",
+    "  console.log('connected to server!');\n",
+    "  client.write(msg);\n",
+    "});\n",
+    "client.on('data', (data) => {\n",
+    "  console.log(data.toString());\n",
+    "  client.end();\n",
+    "});\n",
+    "client.on('end', () => {\n",
+    "  console.log('disconnected from server');\n",
+    "});"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<Buffer f9 be b4 d9 76 65 72 73 69 6f 6e 00 00 00 00 00 66 00 00 00 c6 a7 a2 28 7f 11 01 00 0d 04 00 00 00 00 00 00 26 ff 54 5b 00 00 00 00 0f 04 00 00 00 00 ... >\n",
+      "4 \"magic\" bytes:  f9beb4d9\n",
+      "12 \"command\" bytes:  <Buffer 76 65 72 73 69 6f 6e 00 00 00 00 00>\n",
+      "4 \"length\" bytes <Buffer 66 00 00 00>\n",
+      "4 \"checksum\" bytes  <Buffer c6 a7 a2 28>\n",
+      "102 ' \"payload\" bytes' <Buffer 7f 11 01 00 0d 04 00 00 00 00 00 00 26 ff 54 5b 00 00 00 00 0f 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0d 04 00 00 ... >\n"
+     ]
+    }
+   ],
+   "source": [
+    "versionBytes = Buffer.from('f9beb4d976657273696f6e000000000066000000c6a7a2287f1101000d0400000000000026ff545b000000000f040000000000000000000000000000000000000000000000000d0400000000000000000000000000000000000000000000000024fa090ac579f709102f5361746f7368693a302e31362e302fae22080001','hex')\n",
+    "console.log(versionBytes)\n",
+    "console.log('4 \"magic\" bytes: ', versionBytes.slice(0,4).toString('hex'))\n",
+    "console.log('12 \"command\" bytes: ', versionBytes.slice(4,16))\n",
+    "payloadLengthBytes = versionBytes.slice(16,20)\n",
+    "payloadLength = payloadLengthBytes.readUIntLE(0,3)\n",
+    "console.log('4 \"length\" bytes', payloadLengthBytes)\n",
+    "console.log('4 \"checksum\" bytes ', versionBytes.slice(20,24))\n",
+    "//version_bytes = b'\\xf9\\xbe\\xb4\\xd9version\\x00\\x00\\x00\\x00\\x00f\\x00\\x00\\x00\\xc6\\xa7\\xa2(\\x7f\\x11\\x01\\x00\\r\\x04\\x00\\x00\\x00\\x00\\x00\\x00&\\xffT[\\x00\\x00\\x00\\x00\\x0f\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\r\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00$\\xfa\\t\\n\\xc5y\\xf7\\t\\x10/Satoshi:0.16.0/\\xae\"\\x08\\x00\\x01'\n",
+    "console.log(payloadLength, ' \"payload\" bytes', versionBytes.slice(24, 24+payloadLength))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "var Readable = require('stream').Readable\n",
+    "//from io import BytesIO\n",
+    "\n",
+    "class FakeSocket {\n",
+    "    constructor( bytes ) {\n",
+    "        this.readable = new Readable()\n",
+    "        this.readable.push(bytes)\n",
+    "        this.readable.push(null)\n",
+    "\n",
+    "    }\n",
+    "    \n",
+    "    recv(n) {\n",
+    "        return this.readable.read(n)\n",
+    "    }\n",
+    "}\n",
+    "    \n",
+    "        \n",
+    "    \n",
+    "    \n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "function create_version_socket(skip_bytes=0){\n",
+    "    \n",
+    "\n",
+    "    versionBytes = Buffer.from('f9beb4d976657273696f6e000000000066000000c6a7a2287f1101000d0400000000000026ff545b000000000f040000000000000000000000000000000000000000000000000d0400000000000000000000000000000000000000000000000024fa090ac579f709102f5361746f7368693a302e31362e302fae22080001','hex')\n",
+    "    return new FakeSocket(versionBytes.slice(skip_bytes, versionBytes.length))\n",
+    "}"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "4 \"magic\" bytes:  f9beb4d9\n",
+      "12 \"command\" bytes:  <Buffer 76 65 72 73 69 6f 6e 00 00 00 00 00>\n",
+      "4 \"length\" bytes <Buffer 66 00 00 00>\n",
+      "4 \"checksum\" bytes  <Buffer c6 a7 a2 28>\n",
+      "102 ' \"payload\" bytes' <Buffer 7f 11 01 00 0d 04 00 00 00 00 00 00 26 ff 54 5b 00 00 00 00 0f 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0d 04 00 00 ... >\n",
+      "disconnected from server\n"
+     ]
+    }
+   ],
+   "source": [
+    "sock = create_version_socket()\n",
+    "console.log('4 \"magic\" bytes: ', sock.recv(4).toString('hex'))\n",
+    "console.log('12 \"command\" bytes: ', sock.recv(12))\n",
+    "payloadLengthBytes = sock.recv(4)\n",
+    "payloadLength = payloadLengthBytes.readUIntLE(0,3)\n",
+    "console.log('4 \"length\" bytes', payloadLengthBytes)\n",
+    "console.log('4 \"checksum\" bytes ', sock.recv(4))\n",
+    "//version_bytes = b'\\xf9\\xbe\\xb4\\xd9version\\x00\\x00\\x00\\x00\\x00f\\x00\\x00\\x00\\xc6\\xa7\\xa2(\\x7f\\x11\\x01\\x00\\r\\x04\\x00\\x00\\x00\\x00\\x00\\x00&\\xffT[\\x00\\x00\\x00\\x00\\x0f\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\r\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00$\\xfa\\t\\n\\xc5y\\xf7\\t\\x10/Satoshi:0.16.0/\\xae\"\\x08\\x00\\x01'\n",
+    "console.log(payloadLength, ' \"payload\" bytes', sock.recv(payloadLength))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "NETWORK_MAGIC: 3652501241\n"
+     ]
+    }
+   ],
+   "source": [
+    "//# hexidecimal integers copied from protocol documentation\n",
+    "NETWORK_MAGIC = 0xD9B4BEF9\n",
+    "TESTNET_NETWORK_MAGIC = 0x0709110B\n",
+    "\n",
+    "//# notice this looks like any old integer even though we declared it\n",
+    "//# using a hexidecimal notation. Under the hood Python stores every integer\n",
+    "//# as base 2 and doesn't care what base integers were initialized in.\n",
+    "console.log(\"NETWORK_MAGIC:\", NETWORK_MAGIC)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Mainnet version message? true\n",
+      "Testnet version message? false\n"
+     ]
+    }
+   ],
+   "source": [
+    "function bytes_to_int(b){\n",
+    "    return b.readUIntLE(0,4)    \n",
+    "}\n",
+    "\n",
+    "function read_magic(sock) {\n",
+    "    magic_bytes = sock.recv(4)\n",
+    "    magic = bytes_to_int(magic_bytes)\n",
+    "    return magic\n",
+    "    \n",
+    "}\n",
+    "\n",
+    "function isMainnetMsg(sock) {\n",
+    "    magic = readMagic(sock)\n",
+    "    return magic == NETWORK_MAGIC\n",
+    "    \n",
+    "}\n",
+    "\n",
+    "function isTestnetMsg(sock) {\n",
+    "    magic = readMagic(sock)\n",
+    "    return magic == TESTNET_NETWORK_MAGIC\n",
+    "    \n",
+    "}\n",
+    "\n",
+    "\n",
+    "console.log(\"Mainnet version message?\", isMainnetMsg(create_version_socket()))\n",
+    "console.log(\"Testnet version message?\", isTestnetMsg(create_version_socket()))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "17 'is:'\n",
+      "10001 in binary.\n",
+      "21 in octal.\n",
+      "11 in hexadecimal.\n",
+      "type of bin()/oct()/hex()? string number number\n",
+      "17 17 17 17\n",
+      "17 == 0b10001 == 0o21 == 0x11? true\n"
+     ]
+    }
+   ],
+   "source": [
+    "n = 17\n",
+    "\n",
+    "console.log(n, \"is:\")\n",
+    "console.log(n.toString(2),\"in binary.\")\n",
+    "console.log(n.toString(8),\"in octal.\")\n",
+    "console.log(n.toString(16),\"in hexadecimal.\")\n",
+    "\n",
+    "//# These just print out the string representation of n in a different base\n",
+    "console.log(\"type of bin()/oct()/hex()?\", typeof n.toString(2) , typeof (n),typeof (n))\n",
+    "console.log(17, 0b10001, 0o21, 0x11)\n",
+    "console.log(\"17 == 0b10001 == 0o21 == 0x11?\", 17 == 0b10001 && 0b10001 == 0o21 && 0o21 == 0x11)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Command :  <Buffer 76 65 72 73 69 6f 6e>\n",
+      "Is it a 'version' message? true\n",
+      "Is it a 'verack' message? false\n"
+     ]
+    }
+   ],
+   "source": [
+    "function read_command(sock) {\n",
+    "    raw = sock.recv(12)\n",
+    "    //# remove empty bytes\n",
+    "    command = raw.filter(obj => obj != 0)\n",
+    "    return command\n",
+    "}\n",
+    "\n",
+    "function isVersionMsg(sock) {\n",
+    "    command = read_command(sock)\n",
+    "    return Buffer.from(\"version\", 'ascii').equals( command)\n",
+    "}\n",
+    "\n",
+    "function isVerackMsg(sock) {\n",
+    "    command = read_command(sock)\n",
+    "    return Buffer.from(\"verack\", 'ascii').equals(command)\n",
+    "}\n",
+    "//# Throw away the first 4 bytes (the magic)\n",
+    "sock = create_version_socket(skip_bytes=4)\n",
+    "command = read_command(sock)\n",
+    "console.log(\"Command : \", command)\n",
+    "\n",
+    "sock = create_version_socket(skip_bytes=4)\n",
+    "console.log(\"Is it a 'version' message?\", isVersionMsg(sock))\n",
+    "\n",
+    "sock = create_version_socket(skip_bytes=4)\n",
+    "console.log(\"Is it a 'verack' message?\", isVerackMsg(sock))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Length:  102\n",
+      "Checksum:  <Buffer c6 a7 a2 28>\n",
+      "Payload:  <Buffer 7f 11 01 00 0d 04 00 00 00 00 00 00 26 ff 54 5b 00 00 00 00 0f 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0d 04 00 00 ... >\n",
+      "<Buffer c6 a7 a2 28>\n",
+      "checksum == calculate_checksum(payload)?:  true\n"
+     ]
+    }
+   ],
+   "source": [
+    "var hash = require('hash.js');\n",
+    "\n",
+    "function read_length(sock){\n",
+    "    raw = sock.recv(4)\n",
+    "    length = bytes_to_int(raw)\n",
+    "    return length\n",
+    "}\n",
+    "\n",
+    "function read_checksum(sock){\n",
+    "    //# FIXME: protocol documentation says this should be an integer ...\n",
+    "    raw = sock.recv(4)\n",
+    "    return raw\n",
+    "}\n",
+    "\n",
+    "function calculate_checksum(payload_bytes){\n",
+    "    //\"\"\"First 4 bytes of sha256(sha256(payload))\"\"\"\n",
+    "    first_round = Buffer.from(hash.sha256().update(payload_bytes).digest('hex'), 'hex');\n",
+    "    second_round = hash.sha256().update(first_round).digest('hex');\n",
+    "    first_four_bytes = second_round.slice(0,8)\n",
+    "    return Buffer.from(first_four_bytes,'hex')\n",
+    "}\n",
+    "\n",
+    "function read_payload(sock, length){\n",
+    "    payload = sock.recv(length)\n",
+    "    return payload\n",
+    "}\n",
+    "\n",
+    "//# skip the \"magic\" and \"command\" bytes\n",
+    "sock = create_version_socket(skip_bytes=4+12)\n",
+    "\n",
+    "length = read_length(sock)\n",
+    "checksum = read_checksum(sock)\n",
+    "payload = read_payload(sock, length)\n",
+    "\n",
+    "console.log(\"Length: \", length)\n",
+    "\n",
+    "console.log(\"Checksum: \", checksum)\n",
+    "\n",
+    "console.log(\"Payload: \", payload)\n",
+    "\n",
+    "console.log(calculate_checksum(payload))\n",
+    "console.log(\"checksum == calculate_checksum(payload)?: \", \n",
+    "      checksum.equals(calculate_checksum(payload)))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "SyntaxError",
+     "evalue": "Identifier 'Message' has already been declared",
+     "output_type": "error",
+     "traceback": [
+      "evalmachine.<anonymous>:1",
+      "class Message {",
+      "^",
+      "",
+      "SyntaxError: Identifier 'Message' has already been declared",
+      "    at evalmachine.<anonymous>:1:1",
+      "    at ContextifyScript.Script.runInThisContext (vm.js:50:33)",
+      "    at Object.runInThisContext (vm.js:139:38)",
+      "    at run ([eval]:1002:15)",
+      "    at onRunRequest ([eval]:829:18)",
+      "    at onMessage ([eval]:789:13)",
+      "    at emitTwo (events.js:126:13)",
+      "    at process.emit (events.js:214:7)",
+      "    at emit (internal/child_process.js:772:12)",
+      "    at _combinedTickCallback (internal/process/next_tick.js:141:11)"
+     ]
+    }
+   ],
+   "source": [
+    "class Message {\n",
+    "    constructor( command, payload) {\n",
+    "        this.command = command;\n",
+    "        this.payload = payload;\n",
+    "    }\n",
+    "   \n",
+    "    static read_from_socket (sock) {\n",
+    "        const magic = read_magic(sock)\n",
+    "        if (magic.toString('hex') != NETWORK_MAGIC.toString('hex')) {\n",
+    "            throw new Error('magic is not right');\n",
+    "        }\n",
+    "        command = read_command(sock)\n",
+    "        payload_length = read_length(sock)\n",
+    "        checksum = read_checksum(sock)\n",
+    "        payload = read_payload(sock, payload_length)\n",
+    "        \n",
+    "        calculated_checksum = calculate_checksum(payload)\n",
+    "        if (calculated_checksum != checksum.toString('hex')) {\n",
+    "            throw new Error('checksum does not match');\n",
+    "        }\n",
+    "        if (payload_length != len(payload))\n",
+    "            throw new Error(\"Tried to read {payload_length} bytes, only received {len(payload)} bytes\")\n",
+    "        return new Message(command, payload);\n",
+    "    }\n",
+    "\n",
+    "    serialize() {\n",
+    "        /*\n",
+    "         return Buffer.concat([\n",
+    "            NETWORK_MAGIC, \n",
+    "            this.command, \n",
+    "            this.payload !== null ?  helper.intToLittleEndian(this.payload.length,4) : Buffer.from([0x00,0x00,0x00,0x00]),\n",
+    "            Buffer.from(helper.doubleSha256(this.payload).slice(0,8),'hex'),\n",
+    "            this.payload !== null ?  this.payload : Buffer.from([]),\n",
+    "            //this.payload ,\n",
+    "            ])\n",
+    "        */\n",
+    "    }\n",
+    "}\n",
+    "Message.prototype.toString = function(){\n",
+    "    let result = ''\n",
+    "    return `${this.command.toString('ascii')}: ${this.payload.toString('hex')}`\n",
+    "}\n",
+    "    \n",
+    "//        return f\"<Message command={self.command} payload={self.payload}>\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "Socket {\n",
+       "  connecting: true,\n",
+       "  _hadError: false,\n",
+       "  _handle: \n",
+       "   TCP {\n",
+       "     reading: false,\n",
+       "     owner: [Circular],\n",
+       "     onread: [Function: onread],\n",
+       "     onconnection: null,\n",
+       "     writeQueueSize: 0 },\n",
+       "  _parent: null,\n",
+       "  _host: null,\n",
+       "  _readableState: \n",
+       "   ReadableState {\n",
+       "     objectMode: false,\n",
+       "     highWaterMark: 16384,\n",
+       "     buffer: BufferList { head: null, tail: null, length: 0 },\n",
+       "     length: 0,\n",
+       "     pipes: null,\n",
+       "     pipesCount: 0,\n",
+       "     flowing: true,\n",
+       "     ended: false,\n",
+       "     endEmitted: false,\n",
+       "     reading: false,\n",
+       "     sync: true,\n",
+       "     needReadable: false,\n",
+       "     emittedReadable: false,\n",
+       "     readableListening: false,\n",
+       "     resumeScheduled: true,\n",
+       "     destroyed: false,\n",
+       "     defaultEncoding: 'utf8',\n",
+       "     awaitDrain: 0,\n",
+       "     readingMore: false,\n",
+       "     decoder: null,\n",
+       "     encoding: null },\n",
+       "  readable: false,\n",
+       "  domain: null,\n",
+       "  _events: \n",
+       "   { end: [ [Object], [Function] ],\n",
+       "     finish: [Function: onSocketFinish],\n",
+       "     _socketEnd: [Function: onSocketEnd],\n",
+       "     connect: { [Function: bound onceWrapper] listener: [Function] },\n",
+       "     data: [Function] },\n",
+       "  _eventsCount: 5,\n",
+       "  _maxListeners: undefined,\n",
+       "  _writableState: \n",
+       "   WritableState {\n",
+       "     objectMode: false,\n",
+       "     highWaterMark: 16384,\n",
+       "     finalCalled: false,\n",
+       "     needDrain: false,\n",
+       "     ending: false,\n",
+       "     ended: false,\n",
+       "     finished: false,\n",
+       "     destroyed: false,\n",
+       "     decodeStrings: false,\n",
+       "     defaultEncoding: 'utf8',\n",
+       "     length: 0,\n",
+       "     writing: false,\n",
+       "     corked: 0,\n",
+       "     sync: true,\n",
+       "     bufferProcessing: false,\n",
+       "     onwrite: [Function: bound onwrite],\n",
+       "     writecb: null,\n",
+       "     writelen: 0,\n",
+       "     bufferedRequest: null,\n",
+       "     lastBufferedRequest: null,\n",
+       "     pendingcb: 0,\n",
+       "     prefinished: false,\n",
+       "     errorEmitted: false,\n",
+       "     bufferedRequestCount: 0,\n",
+       "     corkedRequestsFree: \n",
+       "      { next: null,\n",
+       "        entry: null,\n",
+       "        finish: [Function: bound onCorkedFinish] } },\n",
+       "  writable: true,\n",
+       "  allowHalfOpen: false,\n",
+       "  _bytesDispatched: 0,\n",
+       "  _sockname: null,\n",
+       "  _pendingData: null,\n",
+       "  _pendingEncoding: '',\n",
+       "  server: null,\n",
+       "  _server: null,\n",
+       "  [Symbol(asyncId)]: 253,\n",
+       "  [Symbol(bytesRead)]: 0 }"
+      ]
+     },
+     "execution_count": 17,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "connected to server!\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "TypeError: sock.recv is not a function\n",
+      "    at read_magic (evalmachine.<anonymous>:6:24)\n",
+      "    at Function.read_from_socket (evalmachine.<anonymous>:8:23)\n",
+      "    at Socket.client.on (evalmachine.<anonymous>:20:19)\n",
+      "    at emitOne (events.js:116:13)\n",
+      "    at Socket.emit (events.js:211:7)\n",
+      "    at addChunk (_stream_readable.js:263:12)\n",
+      "    at readableAddChunk (_stream_readable.js:250:11)\n",
+      "    at Socket.Readable.push (_stream_readable.js:208:10)\n",
+      "    at TCP.onread (net.js:607:20)"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "disconnected from server\n"
+     ]
+    }
+   ],
+   "source": [
+    "msg = Buffer.from('f9beb4d976657273696f6e00000000006a0000009b228b9e7f1101000f040000000000009341555b000000000f040000000000000000000000000000000000000000000000000f040000000000000000000000000000000000000000000000007256c5439b3aea89142f736f6d652d636f6f6c2d736f6674776172652f0100000001','hex')\n",
+    "//socket.on('connect_error',(error) => {console.log('error',error)})\n",
+    "//socket.send(msg)\n",
+    "//socket.on('event', function(data){});\n",
+    "//socket.on('disconnect', function(){console.log('disconnect')});\n",
+    "\n",
+    "PEER_IP = \"35.187.200.6\"\n",
+    "\n",
+    "PEER_PORT = 8333\n",
+    "\n",
+    "//const net = require('net');\n",
+    "\n",
+    "client = net.createConnection({ port: PEER_PORT, host: PEER_IP }, () => {\n",
+    "  // 'connect' listener\n",
+    "  console.log('connected to server!');\n",
+    "  client.write(msg);\n",
+    "});\n",
+    "\n",
+    "client.on('data', (data) => {\n",
+    "    msg = Message.read_from_socket(data)\n",
+    "  console.log('msg:',msg.toString('hex'));\n",
+    "\n",
+    "  client.end();\n",
+    "});\n",
+    "client.on('end', () => {\n",
+    "  console.log('disconnected from server');\n",
+    "});\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Javascript (Node.js)",
+   "language": "javascript",
+   "name": "javascript"
+  },
+  "language_info": {
+   "file_extension": ".js",
+   "mimetype": "application/javascript",
+   "name": "javascript",
+   "version": "8.11.1"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
