@@ -2,9 +2,7 @@ var EC = require('elliptic').ec;
 var ec = new EC('secp256k1');
 const BN = require('bn.js');
 const uuidv1 = require('uuid/v1')
-
-
-
+var _ = require('lodash');
 
 
 function transfer_message(previous_signature, public_key) {
@@ -99,8 +97,9 @@ class Bank {
         //console.log('lt', coin.last_transfer())
         //this.coins[coin.id]  = Object.assign({}, coin)
         //this.coins[coin.id]  = JSON.parse(JSON.stringify(coin))
-        this.coins[coin.id] = this.copyInstance(coin)
-
+        //this.coins[coin.id] = this.copyInstance(coin)
+        //jquery.extend(true, this.coins[coin.id], coin )
+        this.coins[coin.id] =  _.cloneDeep(coin);
         return coin
     }
 
@@ -110,7 +109,7 @@ class Bank {
         console.log(last_observation.transfers ==
             coin.transfers[last_observation.transfers.length])
         coin.validate()
-        this.coins[coin.id] = this.copyInstance(coin)
+        this.coins[coin.id] =  _.cloneDeep(coin);
 
     }
 
@@ -119,8 +118,13 @@ class Bank {
         //console.log('lt0:',this.coins)
         
         Object.values(this.coins).map(coin=>{
-            //console.log('lt:', coin.last_transfer().public_key)
-            if (coin.last_transfer().public_key == public_key) {
+            console.log('lt:', coin.last_transfer().public_key.encode('hex'))
+            console.log('ltt:',( public_key).encode('hex'))
+            console.log ((coin.last_transfer().public_key.encode('hex')) === (public_key.encode('hex'))) 
+            console.log ((coin.last_transfer().public_key) === (public_key)) 
+
+            if (JSON.stringify(coin.last_transfer().public_key) == JSON.stringify(public_key)) {
+                console.log('lt')
                 coins.push(coin) 
             }
         })
