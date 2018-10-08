@@ -31,23 +31,21 @@ class BankCoin {
 
     transfer( owner_private_key, recipient_public_key) {
         let message = transfer_message(
-            this.last_transfer.signature, 
+            this.last_transfer().signature, 
             recipient_public_key
             )
         let transfer = new Transfer(
-            owner_private_key.sign(message),
+            owner_private_key.sign(Buffer.from(message,'ascii')),
             recipient_public_key
         )
         this.transfers.push(transfer)
     }
-    validate(coin) {
+    validate() {
         let previous_transfer = this.transfers[0]
-        console.log(coin)
-        coin.transfers.map((transfer,i)=>{
+        this.transfers.map((transfer,i)=>{
+            console.log(transfer)
             if(i==0){
                 console.log('Initial')
-                //message = transfer.public_key.getPublic().encode('hex')
-                //console.log('Intial:',i ,bank_public_key.verify(message, transfer.signature))
     
             } else {
                 console.log('Next:',i, previous_transfer.public_key.verify(
@@ -77,15 +75,6 @@ class Bank {
     }
 
 
-    copyInstance (original) {
-        var copied = Object.assign(
-          Object.create(
-            Object.getPrototypeOf(original)
-          ),
-          original
-        );
-        return copied;
-      }
 
     issue(public_key) {
         let transfer = new Transfer(
@@ -94,11 +83,6 @@ class Bank {
         )
 
         let coin = new BankCoin([transfer])
-        //console.log('lt', coin.last_transfer())
-        //this.coins[coin.id]  = Object.assign({}, coin)
-        //this.coins[coin.id]  = JSON.parse(JSON.stringify(coin))
-        //this.coins[coin.id] = this.copyInstance(coin)
-        //jquery.extend(true, this.coins[coin.id], coin )
         this.coins[coin.id] =  _.cloneDeep(coin);
         return coin
     }
@@ -115,16 +99,11 @@ class Bank {
 
     fetch_coins(public_key) {
         let coins = []
-        //console.log('lt0:',this.coins)
         
         Object.values(this.coins).map(coin=>{
-            console.log('lt:', coin.last_transfer().public_key.encode('hex'))
-            console.log('ltt:',( public_key).encode('hex'))
-            console.log ((coin.last_transfer().public_key.encode('hex')) === (public_key.encode('hex'))) 
-            console.log ((coin.last_transfer().public_key) === (public_key)) 
+            console.log ('fetch:', coin.last_transfer().public_key.getPublic().encode('hex') == (public_key.getPublic().encode('hex'))) 
 
-            if (JSON.stringify(coin.last_transfer().public_key) == JSON.stringify(public_key)) {
-                console.log('lt')
+            if (JSON.stringify(coin.last_transfer().public_key.getPublic()) == JSON.stringify(public_key.getPublic())) {
                 coins.push(coin) 
             }
         })
