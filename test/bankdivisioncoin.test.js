@@ -23,6 +23,7 @@ alice_public_key = ec.keyFromPublic(alice_private_key.getPublic())
         
         bank = new Bank()
         coinbase = bank.issue(1000, alice_public_key)
+        
 	
 	
 	tx_ins = [
