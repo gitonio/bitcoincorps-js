@@ -97,19 +97,20 @@ class Bank {
         //console.log('txs:', Object.values(this.txs))
 
         let spent_pairs = []
-
+        let sp = []
         Object.values(this.txs).map(tx=> {
-            tx.tx_ins.map( tx_in=> {
+            spent_pairs = tx.tx_ins.map( tx_in=> {
                 console.log('tx_in:',tx_in.tx_id, tx_in.index)
-                spent_pairs.push(tx_in.tx_id + '-' + tx_in.index)
+                //spent_pairs.push(tx_in.tx_id + '-' + tx_in.index)
+                return tx_in.tx_id + '-' + tx_in.index
             })
         })
         
-        console.log('spent_pairs', spent_pairs)
+        console.log('spent_pairs', spent_pairs, sp)
 
         let unspents = []
-        Object.values(this.txs).map(tx=>{
 
+        Object.values(this.txs).map(tx=>{
             tx.tx_outs.map((tx_out,i)=>{
                 console.log(i, tx.id)
                if (
@@ -122,6 +123,8 @@ class Bank {
 
             })
         })
+
+
         return unspents
     }
 
