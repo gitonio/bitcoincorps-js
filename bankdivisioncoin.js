@@ -55,9 +55,11 @@ class Bank {
     }
 
     is_unspent(tx_in) {
-        //console.log('txs:', Object.values(this.txs))
+        console.log('txs:', Object.values(this.txs))
         Object.values(this.txs).map(tx=> {
+            console.log('txins', tx.tx_ins)
             tx.tx_ins.map( _tx_in=> {
+                console.log('is_unspent:',tx_in.tx_id ,_tx_in_tx_id, tx_in.index , _tx_in.index)
                 if (tx_in.tx_id == _tx_in_tx_id && tx_in.index == _tx_in.index) return false
             })
         })
@@ -85,7 +87,7 @@ class Bank {
             out_sum += tx_out.amount
         })
 
-        console.log(in_sum == out_sum)
+        console.log('insum:', in_sum == out_sum)
     }
 
     handle_tx(tx) {
