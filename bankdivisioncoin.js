@@ -94,32 +94,41 @@ class Bank {
     }
 
     fetch_utxo(public_key) {
-        console.log('txs:', Object.values(this.txs))
+        //console.log('txs:', Object.values(this.txs))
 
         let spent_pairs = []
 
         Object.values(this.txs).map(tx=> {
             tx.tx_ins.map( tx_in=> {
                 console.log('tx_in:',tx_in.tx_id, tx_in.index)
-                spent_pairs.push([tx_in.tx_id, tx_in.index])
+                spent_pairs.push(tx_in.tx_id + '-' + tx_in.index)
             })
         })
         
         console.log('spent_pairs', spent_pairs)
-        return Object.values(this.txs).map(tx=>{
 
-            tx.tx_outs.filter(tx_out=>{
-               public_key == tx_out.public_key
+        let unspents = []
+        Object.values(this.txs).map(tx=>{
+
+            tx.tx_outs.map((tx_out,i)=>{
+                console.log(i, tx.id)
+               if (
+                    public_key.getPublic().encode('hex') == tx_out.public_key.getPublic().encode('hex')
+                    && spent_pairs.find(x=>x==tx.id + '-' + i) == undefined
+                    
+               ) {
+                   unspents.push(tx_out)
+               }
 
             })
         })
-
+        return unspents
     }
 
     fetch_balance(public_key) {
         let unspents = this.fetch_utxo(public_key)
         console.log('unspents:', unspents)
-        return unspents.reduce((acc, curr)=> acc + curr,0)
+        return unspents.reduce((acc, curr)=> acc + curr.amount,0)
     }
 }
 

@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "mocha --watch --grep test_address",
-    "testall": "mocha "
+    "testall": "mocha --grep test_bank_balances"
   },
   "repository": {
     "type": "git",
