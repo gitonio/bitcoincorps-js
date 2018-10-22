@@ -7,8 +7,23 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "banknetcoinclient.js",
-            "program": "${workspaceFolder}\\banknetcoinclient.js" ,
+            "name": "Mocha Tests",
+            "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
+            "args": [
+                "-u",
+                "tdd",
+                "--timeout",
+                "999999",
+                "--colors",
+                "${workspaceFolder}/test"
+            ],
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "bankutxocoin.js",
+            "program": "${workspaceFolder}\\test\\bankutxocoin.test.js" ,
             "args": [
                 "tx", "alice", "bob", "1000"
             ]

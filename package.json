@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --watch --grep test_address",
-    "testall": "mocha --grep test_bank_balances"
+    "test": "mocha --watch --grep test_bank_balances_banknetcoin",
+    "testall": "mocha --grep --watch test_bank_balances_utxocoin"
   },
   "repository": {
     "type": "git",
