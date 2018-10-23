@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "type": "node",
             "request": "launch",
@@ -23,9 +24,9 @@
             "type": "node",
             "request": "launch",
             "name": "bankutxocoin.js",
-            "program": "${workspaceFolder}\\test\\bankutxocoin.test.js" ,
+            "program": "${workspaceFolder}\\banknetcoinserver.js" ,
             "args": [
-                "tx", "alice", "bob", "1000"
+                "tx", "alice", "bob", "100"
             ]
         }
     ]

@@ -13,12 +13,12 @@ const uuidv1 = require('uuid/v1')
 var _ = require('lodash');
 var alice_public_key = require('./indentities').alice_public_key
 var user_public_key = require('./indentities').user_public_key
-
+var assert = require('assert')
 
 function spend_message(tx, index) {
     let outpoint = tx.tx_ins[index].outpoint()
     //todo
-    console.log(outpoint)
+    //console.log(outpoint)
     return `${this.tx_id}:${this.index}`
 }
 
@@ -34,6 +34,21 @@ class Tx {
         let message = spend_message(this.tx,index)
         signature = private_key.sign(message)
         this.tx_ins[index].signature = signature
+    }
+
+    static parse (tx) {
+        let tx_ins = tx.tx_ins.map(x=>{
+            return new TxIn(x.tx_id, x.index, x.signature)
+        })
+
+        let tx_outs = tx.tx_outs.map(x=>{
+            return new TxOut(x.tx_id, x.index, x.amount, x.public_key)
+        })
+        
+        let newtx = new Tx(tx.id, tx_ins, tx_outs)
+        //console.log(newtx)
+        return newtx
+
     }
 }
 
@@ -67,6 +82,15 @@ class TxOut {
     outpoint() {
         return { tx_id: this.tx_id, index: this.index }
     }
+
+    toJSON() {
+        return {
+            "tx_id":this.tx_id,
+            "index":this.index,
+            "amount":this.amount,
+            "public_key":this.public_key.getPublic().encode('hex')
+        }
+    }
 }
 
 class Bank {
@@ -76,8 +100,10 @@ class Bank {
     }
 
     update_utxo(tx) {
-
+        console.log(tx)
         tx.tx_outs.map(tx_out => {
+            console.log('update_utxo:', tx_out.outpoint())
+
             this.utxo.set(JSON.stringify(tx_out.outpoint()), tx_out)
         })
 
@@ -88,6 +114,7 @@ class Bank {
     }
 
     issue(amount, public_key) {
+        console.log('issuing')
         let id = uuidv1()
         let tx_ins = []
         let tx_outs = [new TxOut(id, 0, amount, public_key)]
@@ -102,29 +129,32 @@ class Bank {
         let in_sum = 0
         let out_sum = 0
         let amount = 0
-
+        //console.log('validate tx',tx)
         tx.tx_ins.map(tx_in => {
-
+            //console.log(this.utxo.keys() , JSON.stringify(tx_in.outpoint()) )
             assert(this.utxo.get(JSON.stringify(tx_in.outpoint())))
 
             let tx_out = this.utxo.get(JSON.stringify(tx_in.outpoint()))
 
             let public_key = tx_out.public_key
             public_key.verify(tx_in.spend_message(), tx_in.signature)
-
+            console.log('tx_out.amount1', tx_out.amount)
+ 
             amount = tx_out.amount
             in_sum += amount
 
         })
 
         tx.tx_outs.map(tx_out => {
-            out_sum += tx_out.amount
+            console.log('tx_out.amount', tx_out.amount)
+            out_sum += parseInt(tx_out.amount,10)
         })
-
+        console.log('sum', in_sum, out_sum)
         assert(in_sum == out_sum)
     }
 
     handle_tx(tx) {
+        console.log('handling')
         this.validate_tx(tx)
         this.update_utxo(tx)
     }
@@ -139,7 +169,7 @@ class Bank {
                 utxos.push(utxo)
             }
         }
-
+        //console.log('utxos',utxos)
         return utxos
     }
 
@@ -156,16 +186,17 @@ function prepare_message(command, data) {
     }
 }
 
+let bank = new Bank()
+bank.issue(1000, alice_public_key)
+
 var server = net.createServer(function (socket) {
     //socket.write('Echo server\r\n');
-    let bank = new Bank()
-    bank.issue(1000, alice_public_key)
 
     socket.on('data', function (data) {
         //console.log('dt:',data.toString('utf8'));
         textChunk = data.toString('utf8');
         obj = JSON.parse(textChunk)
-        console.log(obj['command'])
+        //console.log(obj['command'])
         if (obj['command'] == 'ping') {
             response = JSON.stringify(prepare_message('pong'))
             socket.write(response)
@@ -175,13 +206,15 @@ var server = net.createServer(function (socket) {
             let balance = bank.fetch_balance(ec.keyFromPublic(obj['data'], 'hex'))
             response = JSON.stringify(prepare_message('balance-response', balance))
             socket.write(response)
-        } else if (obj['command'] == 'tx') {
-            bank.handle_tx()
+        } else if (obj['command'].toString('utf8') == 'tx') {
+            //console.log('server tx', obj['data'])
+
+            bank.handle_tx(Tx.parse(obj['data']))
             socket.write(JSON.stringify({ command: 'utxos', from: obj['from'], to: obj['to'], amount: obj['amount'] }))
         } else if (obj['command'] == 'utxos') {
-            balance = bank.fetch_utxo(ec.keyFromPublic(obj['data'], 'hex'))
-            console.log('balance',balance)
-            response = JSON.stringify(prepare_message('utxos-response',balance))
+            utxos = bank.fetch_utxo(ec.keyFromPublic(obj['data'], 'hex'))
+            //console.log('utxos',JSON.stringify(utxos))
+            response = JSON.stringify(prepare_message('utxos-response',JSON.stringify(utxos)))
             socket.write(response)
         } else {
             socket.write(textChunk);

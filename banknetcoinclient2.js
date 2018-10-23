@@ -3,7 +3,12 @@ var user_public_key = require('./indentities').user_public_key
 var user_private_key = require('./indentities').user_private_key
 var EC = require('elliptic').ec;
 var ec = new EC('secp256k1');
+var prepare_simple_tx = require('./utils').prepare_simple_tx
 
+var Tx = require('./blockcoin').Tx
+var TxOut = require('./blockcoin').TxOut
+var TxIn = require('./blockcoin').TxIn
+process.on('unhandledRejection', (reason, p) => { throw reason });
 alice_private_key = ec.genKeyPair();
 alice_public_key = ec.keyFromPublic(alice_private_key.getPublic())
 
@@ -48,6 +53,7 @@ function send_message(command, data, response = false) {
         client.write(message);
 
         client.on('data', (data) => {
+            client.destroy()
             resolve(data);
             if (data.toString().endsWith('exit')) {
                 client.destroy();
@@ -57,7 +63,7 @@ function send_message(command, data, response = false) {
         client.on('error', (err) => {
             reject(err);
         });
-
+        
     });
 
 }
@@ -70,7 +76,7 @@ if (args[2] == 'ping') {
     name = args[3]
     public_key = user_public_key(name)
     send_message('balance', public_key.getPublic().encode('hex'))
-        .then((data) => { console.log(`Received1: ${data}`); client.end(); })
+        .then((data) => { console.log(`Received1: `, JSON.parse(data)); client.end(); })
 
 } else if (args[2] == 'tx') {
     cw = { command: 'tx', from: args[3], to: args[4], amount: args[5] }
@@ -81,11 +87,31 @@ if (args[2] == 'ping') {
     recipient_public_key  = user_public_key(args[4])
 
     amount = args[5]
-
+    console.log('amount:', amount)
     //console.log(JSON.stringify(cw))
+    utxos = []
+    txo = {}
     send_message('utxos', sender_public_key.getPublic().encode('hex'))
-        .then((data) => { console.log(`Received1: ${data}`); return sendMessage(`${data}`); })
-        .then((data) => { console.log(`Received2: ${data}`); return client.end(); })
+        .then((data) => { 
+            console.log(`Received1:`, JSON.parse(data)); 
+            utxos = JSON.parse(JSON.parse(data)['data'])
+            console.log('data', utxos) 
+            tx = prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amount)
+            //client.end()
+            //return tx
+            //send_message('tx', tx)
+            return tx
+        }).then((tx)=>{
+            console.log('tx',tx)
+            txo = tx
+            send_message('tx', tx)
+        })
+
+        //send_message('tx', txo)
+        //.then((data) => { console.log(`Received2: ${data}`); return client.end(); })
+
+    
+
 
 } else {
     console.log('Invalid command')
