@@ -105,6 +105,9 @@ if (args[2] == 'ping') {
             console.log('tx',tx)
             txo = tx
             send_message('tx', tx)
+                .then((data) => [
+                    console.log(JSON.parse(data))
+                ])
         })
 
         //send_message('tx', txo)

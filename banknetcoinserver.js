@@ -42,11 +42,10 @@ class Tx {
         })
 
         let tx_outs = tx.tx_outs.map(x=>{
-            return new TxOut(x.tx_id, x.index, x.amount, x.public_key)
+            return new TxOut(x.tx_id, x.index, x.amount, ec.keyFromPublic(x.public_key,'hex'))
         })
         
         let newtx = new Tx(tx.id, tx_ins, tx_outs)
-        //console.log(newtx)
         return newtx
 
     }
@@ -100,9 +99,7 @@ class Bank {
     }
 
     update_utxo(tx) {
-        console.log(tx)
         tx.tx_outs.map(tx_out => {
-            console.log('update_utxo:', tx_out.outpoint())
 
             this.utxo.set(JSON.stringify(tx_out.outpoint()), tx_out)
         })
@@ -138,18 +135,15 @@ class Bank {
 
             let public_key = tx_out.public_key
             public_key.verify(tx_in.spend_message(), tx_in.signature)
-            console.log('tx_out.amount1', tx_out.amount)
- 
+  
             amount = tx_out.amount
             in_sum += amount
 
         })
 
         tx.tx_outs.map(tx_out => {
-            console.log('tx_out.amount', tx_out.amount)
             out_sum += parseInt(tx_out.amount,10)
         })
-        console.log('sum', in_sum, out_sum)
         assert(in_sum == out_sum)
     }
 
@@ -161,7 +155,7 @@ class Bank {
 
     fetch_utxo(public_key) {
         let utxos = []
-        
+        console.log(this.utxo)
         //console.log('server public key:', JSON.parse(public_key))
         for (var utxo of this.utxo.values()) {
             //console.log('utxo public key:', utxo.public_key.getPublic().encode('hex'))
@@ -210,7 +204,8 @@ var server = net.createServer(function (socket) {
             //console.log('server tx', obj['data'])
 
             bank.handle_tx(Tx.parse(obj['data']))
-            socket.write(JSON.stringify({ command: 'utxos', from: obj['from'], to: obj['to'], amount: obj['amount'] }))
+            response = JSON.stringify(prepare_message('tx-response', "accepted"))
+            socket.write(response)
         } else if (obj['command'] == 'utxos') {
             utxos = bank.fetch_utxo(ec.keyFromPublic(obj['data'], 'hex'))
             //console.log('utxos',JSON.stringify(utxos))
