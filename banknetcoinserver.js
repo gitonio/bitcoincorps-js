@@ -111,7 +111,7 @@ class Bank {
     }
 
     issue(amount, public_key) {
-        console.log('issuing')
+        console.log('issuing2')
         let id = uuidv1()
         let tx_ins = []
         let tx_outs = [new TxOut(id, 0, amount, public_key)]
@@ -185,15 +185,17 @@ bank.issue(1000, alice_public_key)
 
 var server = net.createServer(function (socket) {
     //socket.write('Echo server\r\n');
-
+    cmd = ''
     socket.on('data', function (data) {
         //console.log('dt:',data.toString('utf8'));
         textChunk = data.toString('utf8');
         obj = JSON.parse(textChunk)
-        //console.log(obj['command'])
+        cmd = obj['command']
+        console.log(obj['command'])
         if (obj['command'] == 'ping') {
             response = JSON.stringify(prepare_message('pong'))
             socket.write(response)
+            socket.end()
         } else if (obj['command'].toString('utf8') == "balance") {
             //console.log('tc:', obj['command'], ec.keyFromPublic(obj['from'], 'hex').getPublic().encode('hex'));
 
@@ -220,7 +222,10 @@ var server = net.createServer(function (socket) {
     socket.on('error', function (err) {
         console.log(err)
     })
+    socket.on('end', function(){
+        console.log('client disconnected', cmd)
+    })
 });
 
-server.listen(1338, '127.0.0.1');
+server.listen(1339, '127.0.0.1');
 

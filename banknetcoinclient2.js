@@ -5,9 +5,9 @@ var EC = require('elliptic').ec;
 var ec = new EC('secp256k1');
 var prepare_simple_tx = require('./utils').prepare_simple_tx
 
-var Tx = require('./blockcoin').Tx
-var TxOut = require('./blockcoin').TxOut
-var TxIn = require('./blockcoin').TxIn
+var Tx = require('./banknetcoinserver').Tx
+var TxOut = require('./banknetcoinserver').TxOut
+var TxIn = require('./banknetcoinserver').TxIn
 process.on('unhandledRejection', (reason, p) => { throw reason });
 alice_private_key = ec.genKeyPair();
 alice_public_key = ec.keyFromPublic(alice_private_key.getPublic())

@@ -1,6 +1,7 @@
 EC = require('elliptic').ec;
 var ec = new EC('secp256k1');
-
+var Tx = require('./blockcoin').Tx
+var TxOut  = require('./blockcoin').TxOut
 
 //bob_private_key = ec.genKeyPair();
 //console.log('bobs:', bob_private_key.getPrivate('hex'))
@@ -36,9 +37,24 @@ function user_public_key(name) {
 }
 
 function bank_private_key(id) {
-
+    ec.genKeyPair()
 }
 
+function bank_public_key(id) {
+    return ec.keyFromPublic(bank_private_key(id).getPublic())
+}
+
+function airdrop_tx() {
+    id = "1"
+    tx_outs = [
+        new TxOut(id, 0, 500000, bob_public_key),
+        new TxOut(id, 1, 500000, alice_public_key)
+    ]
+    tx = new Tx(id, [], tx_outs)
+    return tx
+}
 module.exports.user_private_key = user_private_key
 module.exports.user_public_key = user_public_key
 module.exports.alice_public_key = alice_public_key
+module.exports.bank_private_key = bank_private_key
+module.exports.airdrop_tx = airdrop_tx
