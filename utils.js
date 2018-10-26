@@ -3,19 +3,20 @@ var ec = new EC('secp256k1');
 const BN = require('bn.js');
 const uuidv1 = require('uuid/v1')
 const assert = require('assert');
-var Tx =    require('./blockcoin').Tx
+var Tx =    require('./blockcoin.js').Tx
 var TxOut = require('./blockcoin').TxOut
 var TxIn = require('./blockcoin').TxIn
+var Bank = require('./blockcoin').Bank
 
 function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amount) {
     sender_public_key = ec.keyFromPublic(sender_private_key.getPublic())
-
+    console.log(Tx.toString())
+    let x = new Bank(1, 2,3)
     tx_ins = []
     tx_in_sum = 0
-    //console.log('loook', utxos)
     utxos.map( tx_out =>{
         if (tx_in_sum <= tx_out.amount) {
-            tx_ins.push(new TxIn(tx_out.tx_id, tx_out.index))
+            tx_ins.push(new TxIn(tx_out.tx_id, tx_out.index, null))
             tx_in_sum += tx_out.amount
         }
     })

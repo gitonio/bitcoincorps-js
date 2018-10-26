@@ -56,5 +56,6 @@ function airdrop_tx() {
 module.exports.user_private_key = user_private_key
 module.exports.user_public_key = user_public_key
 module.exports.alice_public_key = alice_public_key
+module.exports.alice_private_key = alice_private_key
 module.exports.bank_private_key = bank_private_key
 module.exports.airdrop_tx = airdrop_tx

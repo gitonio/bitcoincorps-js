@@ -7,6 +7,7 @@ var _ = require('lodash');
 var bdc = require('../blockcoin')
 const uuidv1 = require('uuid/v1')
 var identities = require('../indentities')
+var prepare_simple_tx = require('../utils').prepare_simple_tx
 
 describe('blockcoin', function () {
     var ec = new EC('secp256k1');
@@ -78,7 +79,6 @@ describe('blockcoin', function () {
     })
 
     it('test_airdrop', function () {
-
         bank = new Bank(0, identities.bank_private_key(0))
         tx = identities.airdrop_tx()
         bank.airdrop(tx)
@@ -99,7 +99,7 @@ describe('blockcoin', function () {
         tx = identities.airdrop_tx()
         bank.airdrop(tx)
         assert.equal(bank.blocks.length, 1)
-
+        console.log(identities.alice_private_key)
         tx = prepare_simple_tx(
             bank.fetch_utxos(identities.alice_public_key), 
             identities.alice_private_key, 

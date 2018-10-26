@@ -1,3 +1,6 @@
+var assert = require('assert')
+var prepare_simple_tx = require('./utils').prepare_simple_tx
+
 const NUM_BANKS = 3
 const BLOCK_TIME = 5
 const PORT = 10000
@@ -80,7 +83,7 @@ class TxOut {
 class Block {
     constructor(txns, timestamp, signature) {
         if (timestamp == null) {
-            timestamp = new time.timestamp
+            timestamp = Date.now()
         }
         this.timestamp = timestamp
         this.signature = signature
@@ -200,7 +203,12 @@ class Bank {
     }
 
     airdrop(tx) {
+        assert.equal(this.blocks.length,0)
 
+        this.update_utxo_set(tx)
+
+        let block = new Block([tx])
+        this.blocks.push(block)
     }
 }
 
