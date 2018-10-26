@@ -1,5 +1,6 @@
 var { assert, expect } = require('chai');
 var Bank = require('../blockcoin').Bank
+var Block = require('../blockcoin').Block
 var BN = require('bn.js')
 var Readable = require('stream').Readable
 EC = require('elliptic').ec;
@@ -106,7 +107,7 @@ describe('blockcoin', function () {
             identities.bob_public_key, 10
         )
 
-        block = Block([tx])
+        block = new Block([tx])
         block.sign(identities.bank_private_key(1))
         bank.handle_block(block)
  
