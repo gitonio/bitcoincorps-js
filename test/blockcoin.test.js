@@ -7,7 +7,7 @@ EC = require('elliptic').ec;
 var _ = require('lodash');
 var bdc = require('../blockcoin')
 const uuidv1 = require('uuid/v1')
-var identities = require('../indentities')
+var identities = require('../identities')
 var prepare_simple_tx = require('../utils').prepare_simple_tx
 
 describe('blockcoin', function () {
@@ -31,30 +31,12 @@ describe('blockcoin', function () {
         bank.handle_block(block)
 
         block = new Block([])
-        wrong_private_key = identities.bank_private_key(1000)
+        wrong_private_key = identities.alice_private_key
         block.sign(wrong_private_key)
+        bank.handle_block(block)
+//        assert.throws(() => bank.handle_block(block), Error, 'Error thrown')
 
-        assert.throws(() => bank.handle_block(block), Error, 'Error thrown')
 
-
-        tx_ins = [
-            new bdc.TxIn(tx_id = coinbase.id, index = 0, signature = null)
-        ]
-
-        tx_id = uuidv1()
-
-        tx_outs = [
-            new bdc.TxOut(tx_id = tx_id, 0, 10, bob_public_key),
-            new bdc.TxOut(tx_id, 1, 990, alice_public_key)
-        ]
-
-        alice_to_bob = new bdc.Tx(tx_id, tx_ins, tx_outs)
-        alice_to_bob.sign_input(0, alice_private_key)
-
-        bank.handle_tx(alice_to_bob)
-
-        assert.equal(bank.fetch_balance(alice_public_key), 990)
-        assert.equal(bank.fetch_balance(bob_public_key), 10)
 
     })
 
@@ -70,23 +52,16 @@ describe('blockcoin', function () {
             identities.bob_public_key, 10
         )
 
-        tx.tx_ins[0].signature = identities.alice_private_key(0x01)
+        tx.tx_ins[0].signature = identities.alice_private_key.sign(0x01)
 
- 
-        assert.throws(() => bank.handle_tx(tx), Error, 'Error thrown')
-
-
-
+        bank.handle_tx(tx)
+        assert.throws(() => bank.handle_tx(tx), Error, 'tx.map is not a function')
     })
 
     it('test_airdrop', function () {
         bank = new Bank(0, identities.bank_private_key(0))
         tx = identities.airdrop_tx()
         bank.airdrop(tx)
-
-
- 
-        assert.throws(() => bank.handle_tx(tx), Error, 'Error thrown')
 
         assert.equal(bank.fetch_balance(identities.alice_public_key),500000)
         assert.equal(bank.fetch_balance(identities.bob_public_key), 500000)
@@ -100,7 +75,6 @@ describe('blockcoin', function () {
         tx = identities.airdrop_tx()
         bank.airdrop(tx)
         assert.equal(bank.blocks.length, 1)
-        console.log(identities.alice_private_key)
         tx = prepare_simple_tx(
             bank.fetch_utxos(identities.alice_public_key), 
             identities.alice_private_key, 
@@ -108,10 +82,9 @@ describe('blockcoin', function () {
         )
 
         block = new Block([tx])
-        block.sign(identities.bank_private_key(1))
+        block.sign(identities.bank_private_key(0))
         bank.handle_block(block)
  
-        assert.throws(() => bank.handle_tx(tx), Error, 'Error thrown')
 
         assert.equal(bank.fetch_balance(identities.alice_public_key), 500000 - 10)
         assert.equal(bank.fetch_balance(identities.bob_public_key)  , 500000 + 10)

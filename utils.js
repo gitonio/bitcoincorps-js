@@ -10,7 +10,7 @@ var Bank = require('./blockcoin').Bank
 
 function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amount) {
     sender_public_key = ec.keyFromPublic(sender_private_key.getPublic())
-    console.log(Tx.toString())
+    //console.log(Tx.toString())
     let x = new Bank(1, 2,3)
     tx_ins = []
     tx_in_sum = 0

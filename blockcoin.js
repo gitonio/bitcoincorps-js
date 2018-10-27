@@ -1,5 +1,7 @@
 var assert = require('assert')
 //var prepare_simple_tx = require('./utils').prepare_simple_tx
+var identities = require('./identities')
+var _ = require('lodash');
 
 const NUM_BANKS = 3
 const BLOCK_TIME = 5
@@ -18,7 +20,6 @@ function spend_message(tx, index) {
 
 function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amount) {
     sender_public_key = ec.keyFromPublic(sender_private_key.getPublic())
-    console.log(Tx.toString())
     let x = new Bank(1, 2,3)
     tx_ins = []
     tx_in_sum = 0
@@ -126,7 +127,7 @@ class Block {
     }
 
     sign(private_key) {
-        this.signature = private_key.sign(this.message)
+        this.signature = private_key.sign(this.message())
     }
 }
 
@@ -139,7 +140,7 @@ class Bank {
         this.mempool = []
         this.private_key = private_key
         this.peer_addresses = {}
-        this.utxo = new Map()
+        //this.utxo = new Map()
     }
 
     next_id() {
@@ -157,7 +158,7 @@ class Bank {
 
     fetch_utxos(public_key) {
         let utxos = []
-        for (var utxo of this.utxo.values()) {
+        for (var utxo of this.utxo_set.values()) {
             if (utxo.public_key.getPublic().encode('hex') == public_key.getPublic().encode('hex')) {
                 utxos.push(utxo)
             }
@@ -168,17 +169,17 @@ class Bank {
     update_utxo_set(tx) {
         tx.tx_outs.map(tx_out => {
 
-            this.utxo.set(JSON.stringify(tx_out.outpoint()), tx_out)
+            this.utxo_set.set(JSON.stringify(tx_out.outpoint()), tx_out)
         })
 
         tx.tx_ins.map(tx_in => {
-            this.utxo.delete(JSON.stringify(tx_in.outpoint()))
+            this.utxo_set.delete(JSON.stringify(tx_in.outpoint()))
         })
 
     }
 
     fetch_balance(public_key) {
-        let unspents = this.fetch_utxo(public_key)
+        let unspents = this.fetch_utxos(public_key)
         return unspents.reduce((acc, curr) => acc + curr.amount, 0)
     }
 
@@ -187,12 +188,12 @@ class Bank {
         let in_sum = 0
         let out_sum = 0
         let amount = 0
-        //console.log('validate tx',tx)
+        console.log('validate tx',tx)
         tx.tx_ins.map(tx_in => {
-            //console.log(this.utxo.keys() , JSON.stringify(tx_in.outpoint()) )
+            console.log(this.utxo_set.keys() , JSON.stringify(tx_in.outpoint()) )
             assert(this.utxo_set.get(JSON.stringify(tx_in.outpoint())))
-            assert()
-            let tx_out = this.utxo.get(JSON.stringify(tx_in.outpoint()))
+            assert(!this.mempool_outpoints().includes(tx))
+            let tx_out = this.utxo_set.get(JSON.stringify(tx_in.outpoint()))
 
             let public_key = tx_out.public_key
             public_key.verify(tx_in.spend_message(), tx_in.signature)
@@ -210,26 +211,42 @@ class Bank {
 
     handle_tx(tx) {
         this.validate_tx(tx)
-        this.mempool.append(tx)
+        this.mempool.push(tx)
     }
 
     handle_block(block) {
+        console.log(this.blocks.length)
         if (this.blocks.length > 0) {
-            public_key = bank_public_key(this.next_id)
-            public_key.verify(block.signature, block.message)
+            let public_key = identities.bank_public_key(this.next_id)
+            public_key.verify(block.message, block.signature )
         }
+        block.txns.map(tx=>this.update_utxo_set(tx))
+
+        this.blocks.push(block)
+
+        this.schedule_next_block()
     }
 
 
     make_block() {
-
+        let txns =  _.cloneDeep(this.mempool);
+        this.mempool = []
+        let block = new Block(txns)
+        block.sign(this.private_key)
+        return block
     }
 
     submit_block() {
-
+        console.log('submitting block')
+        let block = this.make_block()
+        this.handle_block(block)
     }
 
     schedule_next_block() {
+        this.our_turn = 1
+        if (this.our_turn) {
+            setTimeout(this.submit_block, 5000)
+        }
 
     }
 

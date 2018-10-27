@@ -1,7 +1,89 @@
 EC = require('elliptic').ec;
 var ec = new EC('secp256k1');
-var Tx = require('./blockcoin').Tx
-var TxOut  = require('./blockcoin').TxOut
+//var Tx = require('./blockcoin').Tx
+//var TxOut  = require('./blockcoin').TxOut
+class Tx {
+
+    constructor(id, tx_ins, tx_outs) {
+        this.id = id,
+        this.tx_ins = tx_ins,
+        this.tx_outs = tx_outs
+    }
+
+    sign_input(index, private_key) {
+        let message = spend_message(this, index)
+        let signature = private_key.sign(message)
+        this.tx_ins[index].signature = signature
+    }
+
+    verify_input(index, public_key) {
+        tx_in = this.tx_ins[index]
+        message = spend_message(index)
+        return public_key.verify(tx_in.signature, message)
+    }
+
+
+}
+
+class TxIn {
+
+    constructor(tx_id, index, signature) {
+        this.tx_id = tx_id,
+        this.index = index,
+        this.signature = signature
+    }
+
+    spend_message() {
+        return `${this.tx_id}:${this.index}`
+    }
+
+    outpoint() {
+        return { tx_id: this.tx_id, index: this.index }
+    }
+
+}
+
+class TxOut {
+
+    constructor(tx_id, index, amount, public_key) {
+        this.tx_id = tx_id,
+        this.index = index,
+        this.amount = amount,
+        this.public_key = public_key
+    }
+
+    outpoint() {
+        return { tx_id: this.tx_id, index: this.index }
+    }
+
+    toJSON() {
+        return {
+            "tx_id":this.tx_id,
+            "index":this.index,
+            "amount":this.amount,
+            "public_key":this.public_key.getPublic().encode('hex')
+        }
+    }
+}
+
+class Block {
+    constructor(txns, timestamp, signature) {
+        if (timestamp == null) {
+            timestamp = Date.now()
+        }
+        this.timestamp = timestamp
+        this.signature = signature
+        this.txns = txns
+    }
+
+    message() {
+        return JSON.stringify({"timestamp": this.timestamp, "txns": this.txns})
+    }
+
+    sign(private_key) {
+        this.signature = private_key.sign(this.message)
+    }
+}
 
 //bob_private_key = ec.genKeyPair();
 //console.log('bobs:', bob_private_key.getPrivate('hex'))
@@ -37,7 +119,7 @@ function user_public_key(name) {
 }
 
 function bank_private_key(id) {
-    ec.genKeyPair()
+    return ec.genKeyPair()
 }
 
 function bank_public_key(id) {
@@ -58,4 +140,6 @@ module.exports.user_public_key = user_public_key
 module.exports.alice_public_key = alice_public_key
 module.exports.alice_private_key = alice_private_key
 module.exports.bank_private_key = bank_private_key
+module.exports.bank_public_key = bank_public_key
+module.exports.bob_public_key = bob_public_key
 module.exports.airdrop_tx = airdrop_tx
