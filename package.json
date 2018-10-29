@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --grep test_blocks",
+    "test": "mocha --grep blockcoin",
     "testall": "mocha --grep --watch test_bank_balances_utxocoin"
   },
   "repository": {
