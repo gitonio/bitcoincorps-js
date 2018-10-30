@@ -106,12 +106,12 @@ let alice_public_key = ec.keyFromPublic(alice_private_key.getPublic())
 
 // bank_pk = '95c3a65ff777353ec203c64a44f62d29a461fb45f867ff157333aa0c7b2216a2'
 // bank_pu = '04dd8d882e6a7430b0f48381f281a37f6df4e3ff7a2e90e45885d74b5d52909b1669af3251d9d94c627f07ad83d7fa79a41c0b9a408a36a549dc82a0ac7b43834f'
-// let bank_private_k = ec.keyFromPrivate(bank_pk)
-// let bank_public_k = ec.keyFromPublic(bank_private_k.getPublic())
-// console.log('bank pk:', bank_private_k.getPrivate('hex'))
-// console.log('bank pu:', bank_private_k.getPublic().encode('hex'))
-// bank_pk2 = '95c3a65ff777353ec203c64a44f62d29a461fb45f867ff157333aa0c7b2216a2'
-// bank_pu2 = '04dd8d882e6a7430b0f48381f281a37f6df4e3ff7a2e90e45885d74b5d52909b1669af3251d9d94c627f07ad83d7fa79a41c0b9a408a36a549dc82a0ac7b43834f'
+//  let bank_private_k = ec.genKeyPair();
+//  let bank_public_k = ec.keyFromPublic(bank_private_k.getPublic())
+//  console.log('bank pk:', bank_private_k.getPrivate('hex'))
+//  console.log('bank pu:', bank_private_k.getPublic().encode('hex'))
+// bank_pk2 = 'ceb410c88ee4fdb49ce38b78f27dae8328d3bcba1a6654ae2696e2cafc6ce8aa'
+// bank_pu2 = '04f8d10ee0f5ed396267081e887935e52835485b3183534f76c687d4c1b13cdeba6532f5fb83f1a50720abb990f7f00a3b4099b27155ee733baed374ac8d5ea22f'
 
 
 function user_private_key(name) {
@@ -130,14 +130,14 @@ function user_public_key(name) {
 
 function bank_private_key(id) {
     id_to_key = {
-        1:    '95c3a65ff777353ec203c64a44f62d29a461fb45f867ff157333aa0c7b2216a2',
-        2:    '95c3a65ff777353ec203c64a44f62d29a461fb45f867ff157333aa0c7b2216a2'
+        0:    '95c3a65ff777353ec203c64a44f62d29a461fb45f867ff157333aa0c7b2216a2',
+        1:    'ceb410c88ee4fdb49ce38b78f27dae8328d3bcba1a6654ae2696e2cafc6ce8aa'
     }
     return ec.keyFromPrivate(id_to_key[id])
 }
 
 function bank_public_key(id) {
-    return ec.keyFromPublic(bank_private_key().getPublic()) 
+    return ec.keyFromPublic(bank_private_key(id).getPublic()) 
 }
 
 function airdrop_tx() {

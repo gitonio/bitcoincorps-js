@@ -89,12 +89,12 @@ describe('blockcoin', function () {
         )
 
         block = new Block([tx])
-        block.sign(identities.bank_private_key(0))
+        block.sign(identities.bank_private_key(1))
         bank.handle_block(block)
  
 
-        // assert.equal(bank.fetch_balance(identities.alice_public_key), 500000 - 10)
-        // assert.equal(bank.fetch_balance(identities.bob_public_key)  , 500000 + 10)
+        assert.equal(bank.fetch_balance(identities.alice_public_key), 500000 - 10)
+        assert.equal(bank.fetch_balance(identities.bob_public_key)  , 500000 + 10)
     
 
     })

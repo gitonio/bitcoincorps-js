@@ -20,42 +20,14 @@ let logger = winston.createLogger({
     transports: [new winston.transports.Console()]
 });
 
-
-const NUM_BANKS = 2
-const BLOCK_TIME = 5
+const BITS = 19
 const PORT = 10000
-bank = null
+const POW_TARGET = 1 << (256 - BITS)
+const BLOCK_SUBSIDY = 50
 
 //todo logging
 
 
-function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amount) {
-    sender_public_key = ec.keyFromPublic(sender_private_key.getPublic())
-    tx_ins = []
-    tx_in_sum = 0
-    utxos.map(tx_out => {
-        if (tx_in_sum <= tx_out.amount) {
-            tx_ins.push(new TxIn(tx_out.tx_id, tx_out.index, null))
-            tx_in_sum += tx_out.amount
-        }
-    })
-
-    assert(tx_in_sum >= amount)
-
-    tx_id = uuidv1()
-    change = tx_in_sum - amount
-    tx_outs = [
-        new TxOut(tx_id, 0, amount, recipient_public_key),
-        new TxOut(tx_id, 1, change, sender_public_key),
-    ]
-
-    tx = new Tx(tx_id, tx_ins, tx_outs)
-    for (let index = 0; index < tx.tx_ins.length; index++) {
-        tx.sign_input(index, sender_private_key)
-    }
-
-    return tx
-}
 
 function spend_message(tx, index) {
     let outpoint = tx.tx_ins[index].outpoint()
@@ -65,8 +37,7 @@ function spend_message(tx, index) {
 
 class Tx {
 
-    constructor(id, tx_ins, tx_outs) {
-        this.id = id,
+    constructor( tx_ins, tx_outs) {
             this.tx_ins = tx_ins,
             this.tx_outs = tx_outs
     }
@@ -83,21 +54,32 @@ class Tx {
         return public_key.verify(Buffer.from(message, 'ascii').toString('hex'), tx_in.signature)
     }
 
+    is_coinbase() {
+        return this.tx_ins[0].signature instanceof int 
+    }
+
+    id() {
+        return mining_hash(`Tx`)
+    }
 
     static parse (tx) {
         let tx_ins = tx.tx_ins.map(x=>{
-            return new TxIn(x.tx_id, x.index, x.signature)
+            return new TxIn( x.index, x.signature)
         })
 
         let tx_outs = tx.tx_outs.map(x=>{
-            return new TxOut(x.tx_id, x.index, x.amount, ec.keyFromPublic(x.public_key,'hex'))
+            return new TxOut( x.index, x.amount, ec.keyFromPublic(x.public_key,'hex'))
         })
         
-        let newtx = new Tx(tx.id, tx_ins, tx_outs)
+        let newtx = new Tx( tx_ins, tx_outs)
         return newtx
 
     }
 
+}
+
+Tx.prototype.toString = function txToString() {
+    return `Tx(id=${this.id()}, tx_ins=${this.tx_ins}, tx_outs=${this.tx_outs})`
 }
 
 class TxIn {
@@ -108,9 +90,6 @@ class TxIn {
             this.signature = signature
     }
 
-    spend_message() {
-        return `${this.tx_id}:${this.index}`
-    }
 
     outpoint() {
         return { tx_id: this.tx_id, index: this.index }
@@ -118,27 +97,45 @@ class TxIn {
 
 }
 
+TxIn.prototype.toString = function TxInToString() {
+    let signature =  (this.signature instanceof int) ? this.signature : "..."
+    return `TxIn(tx_id=${this.tx_id}, index=${this.index} ${signature})`
+}
+
 class TxOut {
 
-    constructor(tx_id, index, amount, public_key) {
-        this.tx_id = tx_id,
-            this.index = index,
+    constructor( amount, public_key) {
             this.amount = amount,
             this.public_key = public_key
     }
 
-    outpoint() {
-        return { tx_id: this.tx_id, index: this.index }
-    }
 
     toJSON() {
         return {
-            "tx_id": this.tx_id,
-            "index": this.index,
             "amount": this.amount,
             "public_key": this.public_key.getPublic().encode('hex')
         }
     }
+}
+
+TxOut.prototype.toString = function txToString() {
+    return `TxOut(amount=${this.amount}, public_key=${identities.key_to_name(this.public_key)})`
+}
+
+class UnspentTxOut {
+    constructor(tx_id, index, amount, public_key) {
+        this.tx_id = tx_id,
+        this.index = index,
+        this.amount = amount,
+        this.public_key = public_key
+    }
+
+    outpoint() {
+        return {tx_id:this.tx_id, index: this.index}
+    }
+}
+UnspentTxOut.prototype.toString = function UnspentTxOutToString() {
+    return `TxOut(tx_id=${this.tx_id}, index=${this.index} amount=${this.amount}, public_key=${identities.key_to_name(this.public_key)})`
 }
 
 class Block {
@@ -315,6 +312,38 @@ class Bank {
         let block = new Block([tx])
         this.blocks.push(block)
     }
+}
+
+/**********************/
+/*   Tx Construction  */
+/**********************/
+
+function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amount) {
+    sender_public_key = ec.keyFromPublic(sender_private_key.getPublic())
+    tx_ins = []
+    tx_in_sum = 0
+    utxos.map(tx_out => {
+        if (tx_in_sum <= tx_out.amount) {
+            tx_ins.push(new TxIn(tx_out.tx_id, tx_out.index, null))
+            tx_in_sum += tx_out.amount
+        }
+    })
+
+    assert(tx_in_sum >= amount)
+
+    tx_id = uuidv1()
+    change = tx_in_sum - amount
+    tx_outs = [
+        new TxOut(tx_id, 0, amount, recipient_public_key),
+        new TxOut(tx_id, 1, change, sender_public_key),
+    ]
+
+    tx = new Tx(tx_id, tx_ins, tx_outs)
+    for (let index = 0; index < tx.tx_ins.length; index++) {
+        tx.sign_input(index, sender_private_key)
+    }
+
+    return tx
 }
 
 function prepare_message(command, data) {
