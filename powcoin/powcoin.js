@@ -8,6 +8,7 @@ const args = process.argv
 var winston = require('winston')
 const BN = require('bn.js');
 const uuidv1 = require('uuid/v1')
+var hash = require('hash.js');
 
 let logger = winston.createLogger({
     level: 'info',
@@ -139,22 +140,20 @@ UnspentTxOut.prototype.toString = function UnspentTxOutToString() {
 }
 
 class Block {
-    constructor(txns, timestamp, signature) {
-        if (timestamp == null) {
-            timestamp = Date.now()
-        }
-        this.timestamp = timestamp
-        this.signature = signature
+    constructor(txns, prev_id, nonce) {
         this.txns = txns
+        this.prev_id = prev_id
+        this.nonce = nonce
     }
 
-    message() {
-        return JSON.stringify({ "timestamp": this.timestamp, "txns": this.txns })
+    id() {
+        return mining_hash(this.header(this.nonce))
     }
 
-    sign(private_key) {
-        this.signature = private_key.sign(Buffer.from(this.message(), 'ascii').toString('hex'))
+    header(nonce) {
+        return JSON.stringify([this.txns, nonce])
     }
+
 
     static parse(block) {
         let txns = block.txns.map(tx=>Tx.parse(tx))
@@ -162,30 +161,75 @@ class Block {
     }
 }
 
-class Bank {
+Block.prototype.toString = function BlocktoString() {
+    return `Block(prev_id=${this.prev_id}, id=${this.id} nonce=${this.nonce})`
+}
 
-    constructor(id, private_key) {
-        this.id = id
-        this.blocks = []
+
+class Chain {
+
+    constructor(blocks) {
+        this.blocks = blocks
+    }
+
+    work() {
+        return this.blocks.length
+    }
+
+    tip() {
+        return this.blocks[0]
+    }
+    
+    height() {
+        return this.blocks[this.work()-1]
+    }
+
+    txn_iterator(chain) {
+
+    }
+
+    get_last_shared_block(chain_one, chain_two) {
+
+    }
+
+    total_work(chain) {
+        return chain.length
+    }
+
+    tx_in_to_utxo(tx_in, chain) {
+        
+    }
+}
+class Node {
+
+    constructor(peers) {
+        this.active_chain_index = 0
+        this.chains = []
         this.utxo_set = new Map()
         this.mempool = []
-        this.private_key = private_key
-        this.peer_addresses = {}
+        this.peers = peers
+        this.chain_lock = threading.Lock()
     }
 
-    next_id() {
-        return this.blocks.length % NUM_BANKS
-    }
-
-    our_turn() {
-        return this.id == this.next_id()
+    active_chain() {
+        return this.chains[this.active_chain_index]
     }
 
     mempool_outpoints() {
         return this.mempool.map(tx => tx.map(x => tx_in.outpoint = x))
     }
 
+    mempool_tx_ids() {
+        return [this.mempool.map(tx=>tx.id)]
+    }
 
+    add_tx_to_utxo_set(tx) {
+
+    }
+
+    remove_tx_from_utxo_set(tx) {
+
+    }
     fetch_utxos(public_key) {
         let utxos = []
         for (var utxo of this.utxo_set.values()) {
@@ -196,17 +240,17 @@ class Bank {
         return utxos
     }
 
-    update_utxo_set(tx) {
-        tx.tx_outs.map(tx_out => {
+    // update_utxo_set(tx) {
+    //     tx.tx_outs.map(tx_out => {
 
-            this.utxo_set.set(JSON.stringify(tx_out.outpoint()), tx_out)
-        })
+    //         this.utxo_set.set(JSON.stringify(tx_out.outpoint()), tx_out)
+    //     })
 
-        tx.tx_ins.map(tx_in => {
-            this.utxo_set.delete(JSON.stringify(tx_in.outpoint()))
-        })
+    //     tx.tx_ins.map(tx_in => {
+    //         this.utxo_set.delete(JSON.stringify(tx_in.outpoint()))
+    //     })
 
-    }
+    // }
 
     fetch_balance(public_key) {
         let unspents = this.fetch_utxos(public_key)
@@ -242,6 +286,10 @@ class Bank {
         assert(in_sum == out_sum)
     }
 
+    validate_coinbase(tx) {
+
+    }
+
     handle_tx(tx) {
         try {
             this.validate_tx(tx)
@@ -250,6 +298,30 @@ class Bank {
             throw "Tx validation errors"
         }
 
+
+    }
+
+    find_block(block) {
+
+    }
+
+    find_prev_block(block) {
+
+    }
+
+    sync_utxo_set(chain, active_chain) {
+
+    }
+
+    validate_block(block) {
+
+    }
+
+    chain_diffs(from_chain, to_chain) {
+
+    }
+
+    create_branch(chain_index, height) {
 
     }
 
@@ -272,13 +344,6 @@ class Bank {
     }
 
 
-    make_block() {
-        let txns = _.cloneDeep(this.mempool);
-        this.mempool = []
-        let block = new Block(txns)
-        block.sign(this.private_key)
-        return block
-    }
 
     submit_block() {
         let block = this.make_block()
@@ -296,13 +361,6 @@ class Bank {
 
     }
 
-    schedule_next_block() {
-        
-        if (this.our_turn()) {
-            setTimeout(this.submit_block.bind(this), 5000)
-        }
-
-    }
 
     airdrop(tx) {
         assert.equal(this.blocks.length, 0)
@@ -346,6 +404,44 @@ function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amou
     return tx
 }
 
+prepare_coinbase(public_key, height) {
+    return new Tx(
+        tx_ins = [
+            new TxIn(None, None, height)
+        ],
+        tx_outs = [
+            new TxOut(BLOCK_SUBSIDY, public_key)
+        ]
+    )
+}
+
+/*            */
+/*   Mining   */
+/*            */
+
+mining_interrupt = threading.Event()
+
+function mining_hash(s) {
+
+    if (! s instanceof Buffer) {
+        s = Buffer.from(s, 'hex')
+    }
+    return 	Buffer.from(hash.sha256().update(s).digest('hex'),'hex');
+
+}
+
+function mine_block(block) {
+    nonce = 0
+    while (mining_hash(block.header(nonce)) >= POW_TARGET) {
+        nonce++
+                
+    }
+    return block
+}
+
+function mine_forever(public_key) {
+    return true
+}
 function prepare_message(command, data) {
     return {
         "command": command,
@@ -378,11 +474,7 @@ function send_message(msg, port, cb) {
 
 
 function serve(id, port) {
-    logger.log('info', `serve bank: ${id}, port: ${port}`)
-    bank = new Bank(id, identities.bank_private_key(id))
-    tx = identities.airdrop_tx()
-    bank.airdrop(tx)
-    bank.schedule_next_block()
+    
 
     var server = net.createServer(function (socket) {
         cmd = ''
@@ -446,6 +538,18 @@ function serve(id, port) {
 
 if (args[2] == 'serve') {
     // command, bank id, port
+    let peers = args[3]
+    let node = new Node(peers)
+    let genesis_coinbase = prepare_coinbase(user_public_key("alice"), 0)
+    let unmined_genesis_block = new Block(genesis_coinbase)
+    let mined_genesis_block = mine_block(unmined_genesis_block)
+    node.chains.push([mined_genesis_block])
+    node.active_chain_index =0
+    node.add_tx_to_utxo_set(genesis_coinbase)
+
+    node_id = id
+    mining_public_key = node_public_key(node_id)
+
     serve(args[3], args[4])
 
 } else if (args[2] == 'ping') {
