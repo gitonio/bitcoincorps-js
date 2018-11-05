@@ -1,24 +1,6 @@
-function bytes_to_int(b, n, byte_order='little') {
-	if (n == 20) {
-		console.log('b', b.toString())
-		return BigInt(b.toString())
-	} else if (n == 10){
-		return parseInt(b.toString())
-	} else if (n == 5) {
-		return parseInt(b.toString())
-	} else {
-		return parseInt(b.toString())
-	}
-}
+var toBigIntBE = require('bigint-buffer').toBigIntBE
 
-function read_int(stream, n, byte_order='little') {
 
-	b = stream.read(n*2)
-	console.log('read_int')
-	console.log( n,b.toString())
-	
-    return bytes_to_int(b, n*2, byte_order)
-}
 
 function read_version(buf) {
     return buf.readInt32LE(0)
@@ -32,9 +14,10 @@ function read_timestamp(buf) {
 function read_var_int(buf) {
 	//TODO add logic
 	const i = buf.readUInt8(0)
-	console.log('i',i)
+
 	if (i == 0xff) {
-		return read_int(buf,10)
+		b = buf.slice(1,buf.length)
+		return toBigIntBE(buf.slice(1,buf.length))
 	} else if (i == 0xfe){
 		return buf.readUInt32LE(1)
 	} else if (i == 0xfd) {
@@ -44,7 +27,5 @@ function read_var_int(buf) {
 	}
 }
 
-module.exports.bytes_to_int = bytes_to_int
-module.exports.read_int = read_int
 module.exports.read_version = read_version
 module.exports.read_var_int = read_var_int

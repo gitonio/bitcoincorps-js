@@ -18,10 +18,12 @@
   },
   "homepage": "https://github.com/gitonio/bitcoincorps-js#readme",
   "dependencies": {
+    "bigint-buffer": "^1.1.2",
     "bn.js": "^4.11.8",
     "deepcopy": "^1.0.0",
     "elliptic": "^6.4.1",
     "hash.js": "^1.1.5",
+    "ip": "^1.1.5",
     "jquery": "^3.3.1",
     "jsdom": "^12.1.0",
     "lodash": "^4.17.11",
