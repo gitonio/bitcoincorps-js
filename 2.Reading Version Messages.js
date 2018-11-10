@@ -4,48 +4,27 @@ var test_data = require('./test_data')
 var answers = require('./ibd/two/answers')
 var bb = require('bigint-buffer')
 var ip = require('ip')
+const net = require('net')
 
 
-class VersionMessage {
 
-    //command = Buffer.from('version', 'ascii');
+console.log('\n Excercise #2')
+version_streams = test_data.make_version_streams()
+version_streams.map(vs=>console.log('version:', two.read_version(vs)))
 
-    constructor(version, services, timestamp, addr_recv, addr_from,
-                nonce, user_agent, start_height, relay) {
-        this.version = version
-        this.services = services
-        this.timestamp = timestamp
-        this.addr_recv = addr_recv
-        this.addr_from = addr_from
-        this.nonce = nonce
-        this.user_agent = user_agent
-        this.start_height = start_height
-        this.relay = relay
-                }
 
-    from_bytes( buf ) {
-         
-        version = read_int(buf,4)
-        services = read_int(buf, 8)
-        timestamp = read_int(buf, 8)
-        addr_recv = buf.slice(19,19+26)
-        addr_from = buf.slice(19+26, 19+26+26, )
-    }
-}
-/*
-console.log('Excercise #2')
-version_bufs = test_data.make_version_bufs()
-version_bufs.map(vs=>console.log('version:', two.read_version(vs)))
+console.log('\n Excercise #3 ')
+version_streams = test_data.make_version_streams()
+version_streams.map(vs=>console.log('can:', answers.can_send_pong(vs)))
 
-console.log('Excercise #3')
-version_bufs.map(vs=>console.log('can:', answers.can_send_pong(vs)))
+console.log('\n Excercise #4')
+console.log(answers.read_bool(test_data.make_stream(Buffer.from([true]))))
+console.log(answers.read_bool(test_data.make_stream(Buffer.from([false]))))
 
-console.log(answers.read_bool(Buffer.from([true])))
-console.log(answers.read_bool(Buffer.from([false])))
 
-console.log(eight_byte_int = 2n ** (8n * 8n) - 1n)
-console.log(bb.toBufferBE(eight_byte_int, 10))
-console.log(bb.toBigIntBE(bb.toBufferBE(test_data.eight_byte_int, 10)))
+//console.log(eight_byte_int = 2n ** (8n * 8n) - 1n)
+//console.log(bb.toBufferBE(eight_byte_int, 10))
+//console.log(bb.toBigIntBE(bb.toBufferBE(test_data.eight_byte_int, 10)))
 
 
 enumerated = [
@@ -57,9 +36,9 @@ enumerated = [
 ]
 
 //console.log('enum',enumerated[1][1].toString())
-
+console.log('\n Exercise #5')
 enumerated.map(x=>{
-    calculated_int = two.read_var_int(x[1])
+    calculated_int = two.read_var_int(test_data.make_stream(x[1]))
     console.log('enum:', x[0], calculated_int)
 })
 
@@ -67,34 +46,17 @@ enumerated = [
     [test_data.short_str, test_data.short_var_str],
     [test_data.long_str, test_data.long_var_str],
 ]
+
+console.log('\n Exercise #6')
 enumerated.map(x=>{
-    console.log('x',x[1].length,  x[1])
-    calculated_byte_str = test_data.read_var_str(x[1])
+    //console.log('x',x[1].length,  x[1])
+    calculated_byte_str = test_data.read_var_str(test_data.make_stream(x[1]))
     console.log('enum:', x[0].equals(calculated_byte_str))
-    console.log('enum:', x[0].toString(), calculated_byte_str.toString())
+    //console.log('enum:', x[0].toString(), calculated_byte_str.toString())
 })
-*/
-function check_bit(number, index) {
-    mask = 1 << index
-    return (number & mask) == 0 ? false: true
-}
 
-function services_int_to_dict(services_int) {
-    return {
-        'NODE_NETWORK': check_bit(services_int, 0),
-        'NODE_GETUXO' : check_bit(services_int,1),
-        'NODE_BLOOM'  : check_bit(services_int,2),
-        'NODE_WITNESS': check_bit(services_int,3),
-        'NODE_NETWORK_LIMITED': check_bit(services_int,10),
-   
-    }
-}
+console.log('\n Exercise #7')
 
-function read_services(buf) {
-
-    services_int = buf.readInt32LE(0)
-    return services_int_to_dict(services_int)
-}
 
 function test_read_services() {
     services = 1 + 2 + 4 + 1024
@@ -109,11 +71,13 @@ function test_read_services() {
     let buf = Buffer.alloc(8)
     buf.writeInt32LE(services, 0)
 //    let buf = bb.toBufferLE(services, 8)
-    console.log(read_services(buf))
+    console.log(two.read_services(test_data.make_stream(buf)))
 
 }
 
+
 test_read_services()
+
 bitfields = [
     1,
     8,
@@ -127,38 +91,38 @@ bitfields = [
 bitfields.map(bitfield=>{
     let buf = Buffer.alloc(8)
     buf.writeInt32LE(services, 0)
-    console.log(read_services(buf))
+    console.log(two.read_services(test_data.make_stream(buf)))
 
 })
 
-
-function read_ip(buf) {
-    var offset = 12
-    return ip.toString(buf, offset, 4)
+console.log('\n Exercise #8')
+function offers_node_network_service(services_bitfield) {
+    return two.services_int_to_dict(services_bitfield)['NODE_NETWORK']
 }
 
-function read_port(buf) {
-    return buf.readUInt16LE()
+function test_services_0(){
+    console.log( offers_node_network_service(1))
+    console.log( offers_node_network_service(1+8))
+    console.log( offers_node_network_service(4))
 }
 
-class Address {
-    constructor(services, ip, port, time) {
-        this.services = services
-        this.ip = ip
-        this.port = port
-        this.time = time
-    }
-    from_buf(buf, version_msg=false) {
-        if (version_msg) time = null
-        else {
-            time = read_timestamp(buf)
-            services = read_services(buf)
-            ip = read_ip(buf)
-            port = read_port(buf)
-            return new Address(services, ip, port, time)
-        }
-    }
+test_services_0()
+
+console.log('\n Exercise #9')
+function offers_node_bloom_and_node_witness_services(services_bitfield) {
+    return two.services_int_to_dict(services_bitfield)['NODE_BLOOM'] && two.services_int_to_dict(services_bitfield)['NODE_WITNESS']
 }
+
+function test_services_1(){
+    console.log( offers_node_bloom_and_node_witness_services(1))
+    console.log( offers_node_bloom_and_node_witness_services(1+8))
+    console.log( offers_node_bloom_and_node_witness_services(4+8))
+}
+
+test_services_1()
+
+
+
 
 
 function test_read_ip() {
@@ -171,17 +135,18 @@ function test_read_ip() {
         ]
     )
     
-    console.log('ip ok:', read_ip( ipv4_mapped) == ipv4)
+    console.log('ip ok:', two.read_ip( ipv4_mapped) == ipv4)
 }
 test_read_ip()
 
+console.log('\n Exercise #10')
 ports = [8333, 55555]
 function test_read_port_0() {
     ports.map(port=> {
         let buf = Buffer.alloc(2)
-        buf.writeUInt16LE(port)
-        result = read_port(buf)
-        console.log(result)
+        buf.writeUInt16BE(port)
+        result = two.read_port(test_data.make_stream(buf))
+        console.log('port:',result)
     })
 }
 
@@ -191,12 +156,12 @@ b = Buffer.alloc(10)
 b.writeUInt8(22,0)
 b.toString('hex')
 b.readUInt32LE(0)
-
+console.log(b)
 bytes = Buffer.alloc(7)
 bytes.writeUInt32BE(1000000,3)
 bytes.toString('hex')
 bytes.readUInt32BE(3)
-
+console.log(bytes)
 
 
 /*
@@ -254,3 +219,30 @@ let buf = Buffer.allocUnsafe(16);
 buf.writeUInt32LE(Number(eight_byte_int>>32n),4);
 buf.writeUInt32LE(Number(eight_byte_int&4294967295n),0);
 buf
+
+PEER_IP = "35.187.200.6"
+msg = Buffer.from('f9beb4d976657273696f6e00000000006a0000009b228b9e7f1101000f040000000000009341555b000000000f040000000000000000000000000000000000000000000000000f040000000000000000000000000000000000000000000000007256c5439b3aea89142f736f6d652d636f6f6c2d736f6674776172652f0100000001', 'hex')
+
+PEER_PORT = 8333
+
+//const net = require('net');
+
+client2 = net.createConnection({ port: PEER_PORT, host: PEER_IP }, () => {
+    // 'connect' listener
+    console.log('connected to server!');
+    client2.write(msg);
+});
+
+client2.on('data', (data) => {
+    console.log('incoming:',data)
+    readable = new Readable()
+    readable.push(data)
+    readable.push(null)
+    pkt = two.Packet.read_from_socket(readable)
+    console.log('pkt:', pkt.payload);
+    msg = two.VersionMessage.from_bytes(pkt.payload)
+    client2.end();
+});
+client2.on('end', () => {
+    console.log('disconnected from server');
+});

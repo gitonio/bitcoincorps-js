@@ -120,6 +120,15 @@ class Packet {
         return new Packet(command, payload);
     }
 
+    to_bytes() {
+        let result = Buffer.from(NETWORK_MAGIC.toString(16),'hex')
+        result += encode_command(this.command)
+        result += Buffer.from([this.payload.length])
+        result += calculate_checksum(this.payload)
+        result += this.payload
+        return result
+    }
+
     serialize() {
         /*
          return Buffer.concat([
@@ -180,6 +189,11 @@ function services_int_to_dict(services_int) {
     }
 }
 
+function encode_command(cmd) {
+    padding_needed = 12 - cmd.length
+    padding = Buffer.alloc(padding_needed)
+    return Buffer.concat([cmd, padding])
+}
 class VersionMessage {
 
     //command = Buffer.from('version', 'ascii');
@@ -216,6 +230,11 @@ class VersionMessage {
         let relay = read_bool(readable)
         return new VersionMessage(version, services, timestamp, addr_recv, addr_from, nonce, user_agent, start_height, relay )
     }
+
+    to_bytes() {
+        let msg = Buffer.from(this.version.toString(16),'hex')
+        return msg
+    }
 }
 function read_bool(stream) {
     buf = stream.read(1)
@@ -227,6 +246,7 @@ module.exports.read_version = read_version
 module.exports.read_var_int = read_var_int
 module.exports.read_var_str = read_var_str
 module.exports.Packet = Packet
+module.exports.Address = Address
 module.exports.VersionMessage = VersionMessage
 module.exports.read_services = read_services
 module.exports.services_int_to_dict = services_int_to_dict

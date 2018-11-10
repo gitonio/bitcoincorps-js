@@ -7,7 +7,13 @@ version_byte_strings = [
 '6a0000000d0400000000000033c2585b000000000f040000000000000000000000000000000000000000000000000d040000000000000000000000000000000000000000000000007bc5a780a187c1da102f5361746f7368693a302e31362e302f8d24080001'
 ]
 
+function make_stream(buf){
+    readable = new Readable()
+    readable.push(buf)
+    readable.push(null)
+    return readable
 
+}
 function encode_var_int(i) {
     if (i < 0xfd) {
         return Buffer.from([i])
@@ -25,22 +31,8 @@ function encode_var_int(i) {
 }
 
 function read_var_str(s) {
-    start = 0
-    i = s.readUInt8(0)
-    if (i < 0xfd) {
-        start = 1
-    } else if (i < 2** (8*2)) {
-        start = 3
-    } else if (i < 2** (8*4)) {
-        start = 4
-    } else if (i < 2n** (8n*8n)) {
-        start = 9
-    }
-
-    console.log('s',start,s)
     length = two.read_var_int(s)
-    string = s.slice(start, start + length)
-    console.log('s', length, string)
+    string = s.read(length)
     return string
 }
 
@@ -63,7 +55,15 @@ function make_version_bufs () {
         })    
 }
 
+function make_version_streams() {
+    return version_byte_strings.map(x=> {
+        readable = new Readable()
+        readable.push(Buffer.from(x,'hex'))
+        readable.push(null)
+        return readable          
+    })    
 
+}
 true_bytes = Buffer.from([true])
 false_bytes = Buffer.from([false])
 
@@ -98,6 +98,8 @@ short_var_str = encode_var_str(short_str)
 
 
 module.exports.make_version_bufs = make_version_bufs
+module.exports.make_version_streams = make_version_streams
+module.exports.make_stream = make_stream
 module.exports.eight_byte_int = eight_byte_int
 module.exports.two_byte_int = two_byte_int
 module.exports.four_byte_int = four_byte_int
