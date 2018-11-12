@@ -1,34 +1,35 @@
 var { assert, expect } = require('chai');
-var Bank = require('../blockcoin').Bank
-var Block = require('../blockcoin').Block
 var BN = require('bn.js')
 var Readable = require('stream').Readable
 EC = require('elliptic').ec;
 var _ = require('lodash');
-var bdc = require('../blockcoin')
 const uuidv1 = require('uuid/v1')
-var identities = require('../identities')
-var prepare_simple_tx = require('../utils').prepare_simple_tx
 
 var three = require('../ibd/three/complete')
-
 var ec = new EC('secp256k1');
+var ip = require('ip')
 
-//bank_private_key = ec.genKeyPair();
-//bank_public_key = ec.keyFromPublic(bank_private_key.getPublic())
-//console.log('bank:', bank_private_key.getPrivate('hex'))
-//sconsole.log('bank:', bank_private_key.getPublic().encode('hex'))
 
-describe('three', function () {
+
+class FakeSocket {
+    constructor(bytes){
+        this.stream = new Readable()
+        this.stream.push(bytes)
+        this.stream.push(null)
+    }
+}
+
+
+describe('test three', function () {
 
     services = 1
     my_ip = "7.7.7.7"
     peer_ip = "6.6.6.6"
     port = 8333
-    now = Date.now()
+    now = 10000
 
-    my_address = new three.Address(services, my_ip, port)
-    peer_address = new three.Address(services, peer_ip, port)
+    my_address = new three.Address(services, my_ip, port, now)
+    peer_address = new three.Address(services, peer_ip, port, now)
 
     version_message = new three.VersionMessage(
         70015,
@@ -36,75 +37,72 @@ describe('three', function () {
         now,
         my_address,
         peer_address,
-        73948692739875,
+        73948692739875n,
         Buffer.from('bitcoin-corps','ascii'),
         0,
-        1
+        true
     )
 
-    console.log(version_message)
+    
     it('test_version_message_round_trip', function () {
 
         version_message_bytes = version_message.to_bytes()
-        console.log(version_message_bytes)
         packet = new three.Packet(Buffer.from('version','ascii'), version_message_bytes)
         packet_bytes = packet.to_bytes()
-        //assert.throws(()=>bank.handle_block(block),  "Block validation error")
-
-
+        sock = new FakeSocket(packet_bytes).stream
+        packet_2 = three.Packet.read_from_socket(sock)
+        version_message_2 = three.VersionMessage.from_bytes(packet_2.payload)
+        assert.deepEqual(version_message_2, version_message)
 
     })
 
     it('test_services', function () {
 
-        bank = new Bank(0, identities.bank_private_key(0))
-        tx = identities.airdrop_tx()
-        bank.airdrop(tx)
+        services = 1 + 2 + 4 + 8 + 1024
 
-        tx = prepare_simple_tx(
-            bank.fetch_utxos(identities.alice_public_key), 
-            identities.alice_private_key, 
-            identities.bob_public_key, 10
-        )
+        let keys = [
+            "NODE_NETWORK",
+            "NODE_GETUTXO",
+            "NODE_BLOOM",
+            "NODE_WITNESS",
+            "NODE_NETWORK_LIMITED"
+        ]
+        keys.map(key=>assert(three.lookup_services_key(services,key)))
 
-        tx.tx_ins[0].signature = identities.alice_private_key.sign([0x01])
+        services = 0
+        keys.map(key=>assert(!three.lookup_services_key(services,key)))
 
-        assert.throws(() => bank.handle_tx(tx), "Tx validation errors")
     })
 
     it('test_ip_addresses', function () {
-        bank = new Bank(0, identities.bank_private_key(0))
-        tx = identities.airdrop_tx()
-        bank.airdrop(tx)
 
-        assert.equal(bank.fetch_balance(identities.alice_public_key),500000)
-        assert.equal(bank.fetch_balance(identities.bob_public_key), 500000)
-    
+        ipv4_bytes = Buffer.from('00000000000000000000000001010101','hex')
+        ipv6_bytes = Buffer.from('07070707070707070707070707070707','hex')
 
+        ipv4 = ip.toString(ipv4_bytes,12,4)
+
+        assert.equal(ipv4, '1.1.1.1')
+        var buf = new Buffer(16)
+        assert.deepEqual(ip.toBuffer(ipv4, buf, 12),ipv4_bytes)
+
+        ipv6 = ip.toString(ipv6_bytes)
+        assert.equal(ipv6,'707:707:707:707:707:707:707:707')
+        assert.deepEqual(ip.toBuffer(ipv6, buf, 0), ipv6_bytes)
     })
 
     it('test_parse_addrs', function () {
 
-        bank = new Bank(0, identities.bank_private_key(0))
-        tx = identities.airdrop_tx()
-        bank.airdrop(tx)
-        assert.equal(bank.blocks.length, 1)
-        tx = prepare_simple_tx(
-            bank.fetch_utxos(identities.alice_public_key), 
-            identities.alice_private_key, 
-            identities.bob_public_key, 10
-        )
+        raw_addr_payload = Buffer.from('0133f67c5b0d0000000000000000000000000000000000ffff23c69715208d','hex')
+        addr = three.AddrMessage.from_bytes(raw_addr_payload)
+        assert.equal(1, addr.addresses.length)
+        address = addr.addresses[0]
 
-        block = new Block([tx])
-        block.sign(identities.bank_private_key(1))
-        bank.handle_block(block)
- 
-
-        assert.equal(bank.fetch_balance(identities.alice_public_key), 500000 - 10)
-        assert.equal(bank.fetch_balance(identities.bob_public_key)  , 500000 + 10)
+        assert.equal(address.port, 8333)
+        assert.equal(address.ip, "35.198.151.21")
     
 
     })
 
 
 })
+ 

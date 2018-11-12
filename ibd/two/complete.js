@@ -110,7 +110,7 @@ class Packet {
         let payload_length = read_length(sock)
         let checksum = read_checksum(sock)
         let payload = read_payload(sock, payload_length)
-
+        console.log('pll',payload_length)
         let calculated_checksum = calculate_checksum(payload)
         if (!checksum.equals(calculated_checksum)) {
             throw new Error('checksum does not match');
