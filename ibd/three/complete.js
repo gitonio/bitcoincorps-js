@@ -148,9 +148,9 @@ class Packet {
     static read_from_socket(sock) {
         const magic = read_magic(sock)
 
-        if (magic.toString(16) != NETWORK_MAGIC.toString(16)) {
-            throw new Error(`magic is not right, ${magic.toString(16)},${NETWORK_MAGIC.toString(16)}`);
-        }
+//        if (magic.toString(16) != NETWORK_MAGIC.toString(16)) {
+//            throw new Error(`magic is not right, ${magic.toString(16)},${NETWORK_MAGIC.toString(16)}`);
+//        }
         command = read_command(sock)
         let payload_length = read_length(sock)
         let checksum = read_checksum(sock)
@@ -169,7 +169,8 @@ class Packet {
         buf.writeUInt32LE(this.payload.length)
         return Buffer.concat(
             [Buffer.from(NETWORK_MAGIC.toString(16), 'hex'),
-            encode_command(this.command),
+//            [Buffer.from('f9beb4d9', 'hex'),
+            this.command,
                 buf,
             calculate_checksum(this.payload),
             this.payload
@@ -276,6 +277,7 @@ class VersionMessage {
         this.user_agent = user_agent
         this.start_height = start_height
         this.relay = relay
+        this.command = Buffer.from('version', 'ascii')
     }
 
     static from_bytes(payload) {

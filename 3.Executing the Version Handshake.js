@@ -98,12 +98,32 @@ console.log('\n Exercise: implement str_to_var_str')
 test_str_to_var_str()
 
 
+
+
 PEER_IP = "35.187.200.6"
 msg = Buffer.from('f9beb4d976657273696f6e00000000006a0000009b228b9e7f1101000f040000000000009341555b000000000f040000000000000000000000000000000000000000000000000f040000000000000000000000000000000000000000000000007256c5439b3aea89142f736f6d652d636f6f6c2d736f6674776172652f0100000001', 'hex')
 
 PEER_PORT = 8333
 
 //const net = require('net');
+function send_message(msg, PEER_PORT, cb) {
+    //msg = JSON.stringify(msg)
+    
+    var client = net.connect(PEER_PORT, PEER_IP, function () {
+        console.log('client connected')
+    })
+
+    client.write(msg)
+
+    client.on('data', function (data) {
+        dat = data.toString('utf8')
+        console.log('on data', dat)
+        cb(dat)
+        client.end()
+    })
+
+    client.on('end', () => console.log('client.end'))
+}
 
 function handshake(address, port) {
 
@@ -133,9 +153,17 @@ function handshake(address, port) {
     )
     console.log(version_packet)
     serialized_packet = version_packet.to_bytes()
+    console.log(serialized_packet)
+    send_message(serialized_packet, PEER_PORT, function (data) {
 
+        console.log(`{"command":, "${JSON.parse(data)}"}`)
 
+        send_message(msg, PEER_PORT, function (data2) {
+            console.log('done', data2)
+        })
+    })
 
+/*
 
     client2 = net.createConnection({ port: PEER_PORT, host: PEER_IP }, () => {
         // 'connect' listener
@@ -158,6 +186,7 @@ function handshake(address, port) {
     client2.on('end', () => {
         console.log('disconnected from server');
     });
+*/
 
 }
 
