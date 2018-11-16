@@ -8,7 +8,7 @@ var ip = require('ip')
 
 function read_magic(sock) {
     magic_bytes = sock.read(4)
-    magic = magic_bytes.readUInt32BE(0)
+    magic = magic_bytes.readUInt32LE(0)
     return magic
 
 }
@@ -30,9 +30,14 @@ function read_version(stream) {
 }
 
 
-function read_timestamp(stream) {
-    buf = stream.read(4)
-    timestamp = buf.readUInt32LE(0)
+function read_timestamp(stream, version_msg=true) {
+    if (version_msg) {
+        buf = stream.read(8)
+        timestamp = buf.readUInt32LE(0)
+    } else {
+        buf = stream.read(4)
+        timestamp = buf.readUInt32LE(0)    
+    }
     return timestamp
 }
 
@@ -113,7 +118,8 @@ class Address {
         let time
         if (version_msg) time = null
         else {
-            time = read_timestamp(buf)
+            time = read_timestamp(buf, version_msg)
+            //time = null
         }
         let services = read_services(buf)
         let ip = read_ip(buf)
@@ -148,9 +154,9 @@ class Packet {
     static read_from_socket(sock) {
         const magic = read_magic(sock)
 
-//        if (magic.toString(16) != NETWORK_MAGIC.toString(16)) {
-//            throw new Error(`magic is not right, ${magic.toString(16)},${NETWORK_MAGIC.toString(16)}`);
-//        }
+       if (magic.toString(16) != NETWORK_MAGIC.toString(16)) {
+           throw new Error(`magic is not right, ${magic.toString(16)},${NETWORK_MAGIC.toString(16)}`);
+       }
         command = read_command(sock)
         let payload_length = read_length(sock)
         let checksum = read_checksum(sock)
@@ -159,7 +165,7 @@ class Packet {
         if (!checksum.equals(calculated_checksum)) {
             throw new Error('checksum does not match');
         }
-        if (payload_length != payload.length)
+        if (!(payload==null) && (payload_length != payload.length))
             throw new Error("Tried to read {payload_length} bytes, only received {len(payload)} bytes")
         return new Packet(command, payload);
     }
@@ -168,8 +174,8 @@ class Packet {
         buf = Buffer.alloc(4)
         buf.writeUInt32LE(this.payload.length)
         return Buffer.concat(
-            [Buffer.from(NETWORK_MAGIC.toString(16), 'hex'),
-//            [Buffer.from('f9beb4d9', 'hex'),
+            //[Buffer.from(NETWORK_MAGIC.toString(16), 'hex'),
+            [Buffer.from([0xf9, 0xbe, 0xb4, 0xd9]),
             this.command,
                 buf,
             calculate_checksum(this.payload),
@@ -285,14 +291,21 @@ class VersionMessage {
         readable.push(payload)
         readable.push(null)
         let version = read_version(readable)
-         let services = read_services(readable)
+        //console.log('version:',version)
+        let services = read_services(readable)
+        //console.log('services:',services)
         let time = read_timestamp(readable)
+        time = 0
+        //console.log('time:',new Date(time))
         
-        let addr_recv = Address.from_stream(readable)
-        let addr_from = Address.from_stream(readable)
+        let addr_recv = Address.from_stream(readable, true)
+        //console.log('recv', addr_recv)
+        let addr_from = Address.from_stream(readable, true)
+        //console.log('from', addr_from)
         let nonce = toBigIntLE(readable.read(8))
-
+        //console.log('nonce', nonce)
         let user_agent = read_var_str(readable)
+        //console.log('user_agent', user_agent.toString('ascii'))
         let buf = readable.read(4)
         let start_height = buf.readUInt32LE(0)
         let relay = read_bool(readable)
@@ -319,6 +332,22 @@ class VersionMessage {
         ])
         return msg
     }
+}
+
+class VerackMessage {
+    constructor() {
+        this.command = Buffer.from('verack','ascii')
+    }
+
+    static from_bytes(s) {
+        return new VerackMessage()
+    }
+    
+    to_bytes() {
+        return Buffer.from([])
+
+    }
+
 }
 function read_bool(stream) {
     buf = stream.read(1)
@@ -374,6 +403,7 @@ module.exports.Packet = Packet
 module.exports.Address = Address
 module.exports.AddrMessage = AddrMessage
 module.exports.VersionMessage = VersionMessage
+module.exports.VerackMessage = VerackMessage
 module.exports.read_services = read_services
 module.exports.services_int_to_dict = services_int_to_dict
 module.exports.lookup_services_key = lookup_services_key

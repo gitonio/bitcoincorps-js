@@ -7,5 +7,6 @@ readable.push(msg)
 readable.push(null)
 
 x = three.Packet.read_from_socket(readable)
+version_message = three.VersionMessage.from_bytes(x.payload)
 
-console.log(x)
+console.log(version_message)
