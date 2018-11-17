@@ -176,7 +176,7 @@ class Packet {
         return Buffer.concat(
             //[Buffer.from(NETWORK_MAGIC.toString(16), 'hex'),
             [Buffer.from([0xf9, 0xbe, 0xb4, 0xd9]),
-            this.command,
+            encode_command(this.command),
                 buf,
             calculate_checksum(this.payload),
             this.payload

@@ -103,6 +103,14 @@ describe('test three', function () {
 
     })
 
+    it('test', function () {
+        let va = new three.VerackMessage()
+        let vp = new three.Packet(va.command, va.to_bytes())
+        let vpb = vp.to_bytes()
+        let want = Buffer.from('f9beb4d976657261636b000000000000000000005df6e0e2','hex')
+        assert.deepEqual(vpb, want)
+    })
+
 
 })
  

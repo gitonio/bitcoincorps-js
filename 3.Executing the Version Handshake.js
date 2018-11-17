@@ -108,18 +108,18 @@ PEER_PORT = 8333
 //const net = require('net');
 function send_message(msg, PEER_PORT, cb) {
     //msg = JSON.stringify(msg)
-    
-    var dat =''
+
+    var dat = ''
     var client = net.connect(PEER_PORT, PEER_IP, function () {
         console.log('client connected')
         client.write(msg)
 
     })
-    
-    
+
+
     client.on('data', data => {
-        cb(data,client)
-    
+        cb(data, client)
+
         console.log('after data')
     })
     // let va = new three.VerackMessage()
@@ -128,8 +128,8 @@ function send_message(msg, PEER_PORT, cb) {
 
     // client.write(vpb)
     //client.on('end', ()=>cb(dat))
-    client.on('end',() => console.log('client.end'))
-    client.on('error' ,() => console.log('client.error'))
+    client.on('end', () => console.log('client.end'))
+    client.on('error', () => console.log('client.error'))
 }
 
 function handshake(address, port) {
@@ -168,9 +168,9 @@ function handshake(address, port) {
             readable.push(data)
             readable.push(null)
             let pkt = three.Packet.read_from_socket(readable)
-            console.log(pkt.command.toString('ascii'))
+            console.log('version?:', pkt.command.toString('ascii') == 'version')
             let vm = three.VersionMessage.from_bytes(pkt.payload)
-            console.log('pkt', vm)
+            console.table(vm)
             let pkt2 = three.Packet.read_from_socket(readable)
             console.log(pkt2.command.toString('ascii'))
             let vm2 = three.VerackMessage.from_bytes(pkt2.payload)
@@ -178,16 +178,16 @@ function handshake(address, port) {
             let va = new three.VerackMessage()
             let vp = new three.Packet(va.command, va.to_bytes())
             let vpb = vp.to_bytes()
-            vpb = Buffer.from('f9beb4d976657261636b000000000000000000005df6e0e2','hex')
+            //vpb = Buffer.from('f9beb4d976657261636b000000000000000000005df6e0e2','hex')
             console.log('vpb', vpb.toString('hex'))
-            console.log('vp',vp, vp.command.toString('ascii'), vp.payload)
+            console.log('vp', vp, vp.command.toString('ascii'), vp.payload)
             //   send_message(vpb, PEER_PORT, function (data2) {
             //       console.log('done', data2)
             //   })
-            console.log('cw', client.write(vpb,()=>console.log('written verack')))
+            console.log('cw', client.write(vpb, () => console.log('written verack')))
             //return null
-        } else if (data.slice(4,10).toString('ascii') == 'verack') {
-            console.log('else if data', data.slice(4,10).toString('ascii'))
+        } else if (data.slice(4, 10).toString('ascii') == 'verack') {
+            console.log('else if data', data.slice(4, 10).toString('ascii'))
             let readable = new Readable()
             readable.push(data)
             readable.push(null)
@@ -202,38 +202,114 @@ function handshake(address, port) {
             })
 
         } else {
-            console.log('else data', data.slice(4,10).toString('ascii'))
+            console.log('else data', data.slice(4, 10).toString('ascii'))
 
         }
-        console.log('last', data.slice(4,10).toString('ascii'))
+        console.log('last', data.slice(4, 10).toString('ascii'))
     })
 
-    /*
-    
-        client2 = net.createConnection({ port: PEER_PORT, host: PEER_IP }, () => {
-            // 'connect' listener
-            console.log('connected to server!');
-            client2.write(serialized_packet);
-        });
-    
-        client2.on('data', (data) => {
-            console.log('incoming:', data)
-            readable = new Readable()
-            readable.push(data)
-            readable.push(null)
-            pkt = two.Packet.read_from_socket(readable)
-            console.log('pkt:', pkt.payload);
-            msg = two.VersionMessage.from_bytes(pkt.payload)
-            console.log(msg)
-            client2.end();
-        });
-    
-        client2.on('end', () => {
-            console.log('disconnected from server');
-        });
-    */
 
 }
 
-handshake("35.198.151.21", 8333)
+//handshake("35.198.151.21", 8333)
 
+
+function simple_crawler() {
+    addresses = [
+        ["35.198.151.21", 8333],
+        ["91.221.70.137", 8333],
+        ["92.255.176.109", 8333],
+        ["94.199.178.17", 8333],
+        ["213.250.21.112", 8333],
+    ]
+
+    // var addresses = new Set()
+    // addresses.add("35.198.151.21")
+    // addresses.add("91.221.70.137")
+    // addresses.add("92.255.176.109")
+    // addresses.add("94.199.178.17")
+    // addresses.add("213.250.21.112")
+
+
+    services = 0
+    my_ip = '7.7.7.7'
+    peer_ip = addresses[0][0]
+    port = addresses[0][1]
+    now = 100000
+    my_address = new three.Address(services, my_ip, port, now)
+    peer_address = new three.Address(services, peer_ip, port, now)
+
+    version_message = new three.VersionMessage(
+        70015,
+        services,
+        now,
+        my_address,
+        peer_address,
+        73948692739875n,
+        Buffer.from('bitcoin-corps', 'ascii'),
+        0,
+        true
+    )
+    //console.log(version_message)
+    version_packet = new three.Packet(
+        version_message.command,
+        version_message.to_bytes()
+    )
+    //console.log(version_packet)
+    serialized_packet = version_packet.to_bytes()
+    console.log('sp:', serialized_packet.toString('hex'))
+
+    while (addresses.length > 0) {
+        address = addresses.pop()
+        console.log('connecting to', address[0])
+
+        send_message(msg, PEER_PORT, function (data, client) {
+            console.log('slice', data.slice(4, 11).toString('ascii'))
+            //if (data.slice(4, 11).toString('ascii') == 'version') {
+                let readable = new Readable()
+                readable.push(data)
+                readable.push(null)
+                let pkt = three.Packet.read_from_socket(readable)
+                console.log(pkt.command.toString('ascii'))
+            if (pkt.command == 'version') {
+                let vm = three.VersionMessage.from_bytes(pkt.payload)
+                console.table(vm)
+                let pkt2 = three.Packet.read_from_socket(readable)
+                console.log(pkt2.command.toString('ascii'))
+                let vm2 = three.VerackMessage.from_bytes(pkt2.payload)
+                console.log('pkt', vm2)
+                let va = new three.VerackMessage()
+                let vp = new three.Packet(va.command, va.to_bytes())
+                let vpb = vp.to_bytes()
+                //vpb = Buffer.from('f9beb4d976657261636b000000000000000000005df6e0e2','hex')
+                console.log('vpb', vpb.toString('hex'))
+                console.log('vp', vp, vp.command.toString('ascii'), vp.payload)
+                //   send_message(vpb, PEER_PORT, function (data2) {
+                //       console.log('done', data2)
+                //   })
+                console.log('cw', client.write(vpb, () => console.log('written verack')))
+                //return null
+            } else if (pkt.command == 'addr') {
+                console.log('else if data', data.slice(4, 10).toString('ascii'))
+                //let readable = new Readable()
+                //readable.push(data)
+                //readable.push(null)
+                //let pkt = three.Packet.read_from_socket(readable)
+                //console.log('pkt', pkt)
+                let addr_message = three.AddrMessage.from_bytes(pkt.payload)
+                console.log(addr_message)
+                if (addr_message.addresses.length > 1) {
+                    addr_message.addresses.map(address => addresses.push([address.ip, address.port]))
+                }
+                console.log(addresses)
+            } else {
+                console.log('else data', data.slice(4, 10).toString('ascii'))
+
+            }
+
+
+        })
+    }
+}
+
+simple_crawler()

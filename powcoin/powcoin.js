@@ -211,6 +211,10 @@ class Node {
         this.chain_lock = threading.Lock()
     }
 
+    join_network(peers) {
+
+    }
+
     active_chain() {
         return this.chains[this.active_chain_index]
     }
@@ -301,11 +305,12 @@ class Node {
 
     }
 
-    find_block(block) {
+    locate_block(block_id) {
 
     }
 
-    find_prev_block(block) {
+
+    work_ordered_chains() {
 
     }
 
@@ -343,23 +348,25 @@ class Node {
         return true
     }
 
-
-
-    submit_block() {
-        let block = this.make_block()
-        this.handle_block(block)
-        if (this.id == 0) {
-            send_message(prepare_message('block',block),  1339, function (data) {
-                console.log('info', 'submit_block '+ data)
-            })
-
-        } else {
-            send_message(prepare_message('block',block),  1338, function (data) {
-                console.log('info', 'submit_block '+ data)
-            })
-        }
+    initial_block_download() {
 
     }
+
+    // submit_block() {
+    //     let block = this.make_block()
+    //     this.handle_block(block)
+    //     if (this.id == 0) {
+    //         send_message(prepare_message('block',block),  1339, function (data) {
+    //             console.log('info', 'submit_block '+ data)
+    //         })
+
+    //     } else {
+    //         send_message(prepare_message('block',block),  1338, function (data) {
+    //             console.log('info', 'submit_block '+ data)
+    //         })
+    //     }
+
+    // }
 
 
     airdrop(tx) {
@@ -404,7 +411,7 @@ function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amou
     return tx
 }
 
-prepare_coinbase(public_key, height) {
+function prepare_coinbase(public_key, height) {
     return new Tx(
         tx_ins = [
             new TxIn(None, None, height)
@@ -468,9 +475,6 @@ function send_message(msg, port, cb) {
     client.on('end', () => console.log('client.end'))
 }
 
-///////////////
-//   CLI    ///
-//////////////
 
 
 function serve(id, port) {
@@ -535,6 +539,11 @@ function serve(id, port) {
 
     server.listen(port, '127.0.0.1');
 }
+
+
+///////////////
+//   CLI    ///
+//////////////
 
 if (args[2] == 'serve') {
     // command, bank id, port
