@@ -12,6 +12,11 @@ var hash = require('hash.js')
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 
 
+
+
+const PORT = 10000
+node  = ''
+
 let logger = winston.createLogger({
     level: 'info',
     format: winston.format.combine(
@@ -22,12 +27,6 @@ let logger = winston.createLogger({
     ),
     transports: [new winston.transports.Console()]
 });
-
-
-const PORT = 10000
-node  = ''
-
-//todo logging
 
 
 
@@ -131,8 +130,6 @@ class Block {
     }
 
     proof() {
-        console.log('0x'+this.id())
-        console.log(BigInt('0x' + this.id()))
         return BigInt('0x' + this.id())
     }
 
@@ -142,13 +139,19 @@ class Block {
     }
 }
 
+Block.prototype.toString = function () {
+    let result = ''
+    return `Block(prev_id=${this.prev_id.toString('hex').slice(0,10)}... id= ${this.id().slice(0,10)}...)`
+}
+
 class Node {
 
-    constructor() {
+    //TODO fix hack to use Docker
+    constructor(port) {
         this.blocks = []
         this.utxo_set = new Map()
         this.mempool = []
-        this.peer_addresses = {}
+        this.peer_addresses = port==20001?  {"port":20001}: {"port":20002}
     }
 
 
@@ -226,19 +229,24 @@ class Node {
 
     validate_block(block) {
         assert(block.proof() < POW_TARGET)
-        assert(block.prev_id == this.block[this.block.length-1].id())
+        assert(block.prev_id == this.blocks[this.blocks.length-1].id())
     }
 
     handle_block(block) {
-        this.validate_block()
+        this.validate_block(block)
 
 
         block.txns.map(tx => this.validate_tx(tx))
         block.txns.map(tx => this.update_utxo_set(tx))
 
         this.blocks.push(block)
-
-        this.peer_addresses.map(send_message(peer_address, "block", block))
+        
+        logger.log('info', `Block accepted: height= ${this.blocks.length - 1}`)
+        //this.peer_addresses.map(send_message(peer_address, "block", block))
+        send_message(prepare_message('block'), 20001,  function (data) {
+            console.log('done', data)
+        })
+    
 
     }
 
@@ -284,14 +292,14 @@ function prepare_message(command, data) {
 /* Mining            */
 /*                   */
 
-DIFFICULTY_BITS = 12
+DIFFICULTY_BITS = 20
 POW_TARGET = 2 ** (256 - DIFFICULTY_BITS)
 
 
 function mine_block(block) {
     while (block.proof() >= POW_TARGET) {
         block.nonce++
-        console.log(block.nonce)
+        //console.log(block.nonce)
     }
     console.log('block mined')
     return block
@@ -302,11 +310,19 @@ function mine_genesis_block() {
     let unmined_block = new Block([])
     mined_block = mine_block(unmined_block)
     node.blocks.push(mined_block)
-    console.log(node.blocks)
+    let myWorker = startWorker(__dirname + '/minerCode.js', (err, result) => {
+        if(err) return console.error(err);
+        console.log("[[Heavy computation function finished]]")
+        console.log("First value is: ", result.val, result.block);
+        node.handle_block(new Block(result.block.txns, result.block.prev_id, result.block.nonce))
+    })
+
+    //console.log(node.blocks)
 }
 
 function startWorker(path, cb) {
-	let w = new Worker(path, {workerData: null});
+    let block_id = node.blocks[node.blocks.length-1].id()
+	let w = new Worker(path, {workerData: {"block_id":block_id, "mempool": node.mempool}});
 	w.on('message', (msg) => {
 		cb(null, msg)
 	})
@@ -319,12 +335,6 @@ function startWorker(path, cb) {
 }
 
 
-let myWorker = startWorker(__dirname + '/minerCode.js', (err, result) => {
-	if(err) return console.error(err);
-	console.log("[[Heavy computation function finished]]")
-	console.log("First value is: ", result.val);
-	console.log("Took: ", (result.timeDiff / 1000), " seconds");
-})
 
 /*                   */
 /* Networking        */
@@ -356,16 +366,10 @@ function send_message(msg, port, cb) {
 //////////////
 
 
-function serve(id, port) {
-    //logger.log('info')
-    let myWorker = startWorker(__dirname + '/minerCode.js', (err, result) => {
-        if(err) return console.error(err);
-        console.log("[[Heavy computation function finished]]")
-        console.log("First value is: ", result.val);
-        console.log("Took: ", (result.timeDiff / 1000), " seconds");
-    })
+function serve(port) {
+    logger.log('info','serve')
     
-    port = 1999
+    //port = 1999
     var server = net.createServer(function (socket) {
         cmd = ''
         socket.on('data', function (data) {
@@ -423,12 +427,11 @@ function serve(id, port) {
 
     server.listen(port, '127.0.0.1');
 }
-
 if (args[2] == 'serve') {
     // command, bank id, port
-    node = new Node()
+    node = new Node(args[3])
     mine_genesis_block()
-    serve()
+    serve(args[3])
 
 
 
@@ -470,7 +473,7 @@ if (args[2] == 'serve') {
 
 
 } else {
-    console.log('Invalid command')
+    console.log('Invalid cli command:', args[2])
 }
 
 module.exports.Tx = Tx
