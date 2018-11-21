@@ -152,6 +152,7 @@ class Node {
         this.utxo_set = new Map()
         this.mempool = []
         this.peer_addresses = port==20001?  {"port":20001}: {"port":20002}
+        this.myWorker
     }
 
 
@@ -231,19 +232,29 @@ class Node {
         assert(block.proof() < POW_TARGET)
         console.log('prev_id',block.prev_id)
         console.log('new  id', this.blocks[this.blocks.length-1].id())
+        if(block.prev_id == undefined) return
         assert(block.prev_id == this.blocks[this.blocks.length-1].id())
     }
 
     handle_block(block) {
+        if(!this.myWorker==undefined) {
+            this.myWorker.terminate()
+        }
         console.log('validating block', block)
-        this.validate_block(block)
+        //this.validate_block(block)
 
 
         block.txns.map(tx => this.validate_tx(tx))
         block.txns.map(tx => this.update_utxo_set(tx))
 
         this.blocks.push(block)
-        
+        this.myWorker = this.startWorker(__dirname + '/minerCode.js', (err, result) => {
+        if(err) return console.error(err);
+        console.log("[[Heavy computation function finished]]")
+        console.log("First value is: ", result.val, result.block);
+        node.handle_block(new Block(result.block.txns, result.block.prev_id, result.block.nonce))
+    })
+
         logger.log('info', `Block accepted: height= ${this.blocks.length - 1}`)
         logger.log('info', `Block accepted: height= ${this.blocks}`)
         //this.peer_addresses.map(send_message(peer_address, "block", block))
@@ -321,13 +332,8 @@ function mine_block(block) {
 function mine_genesis_block() {
     let unmined_block = new Block([])
     mined_block = mine_block(unmined_block)
-    node.blocks.push(mined_block)
-    // let myWorker = startWorker(__dirname + '/minerCode.js', (err, result) => {
-    //     if(err) return console.error(err);
-    //     console.log("[[Heavy computation function finished]]")
-    //     console.log("First value is: ", result.val, result.block);
-    //     node.handle_block(new Block(result.block.txns, result.block.prev_id, result.block.nonce))
-    // })
+    //node.blocks.push(mined_block)
+    node.handle_block(mined_block)
 
 }
 
@@ -433,9 +439,9 @@ function serve(port) {
 
 if (args[2] == 'serve') {
     // command, bank id, port
+    serve(args[3])
     node = new Node(args[3])
     mine_genesis_block()
-    serve(args[3])
     // myWorker = startWorker(__dirname + '/minerCode.js', (err, result) => {
     //     if(err) return console.error(err);
     //     console.log("[[Heavy computation function finished]]")
@@ -443,7 +449,7 @@ if (args[2] == 'serve') {
     //     node.handle_block(new Block(result.block.txns, result.block.prev_id, result.block.nonce))
 
     // })
-
+    // node.myWorker = myWorker
     //myWorker.postMessage({hello:"antonio"})
 
 
