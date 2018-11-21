@@ -141,7 +141,7 @@ class Block {
 
 Block.prototype.toString = function () {
     let result = ''
-    return `Block(prev_id=${this.prev_id.toString('hex').slice(0,10)}... id= ${this.id().slice(0,10)}...)`
+    return `Block(prev_id=${this.prev_id}... id= ${this.id().slice(0,10)}...)`
 }
 
 class Node {
@@ -229,10 +229,13 @@ class Node {
 
     validate_block(block) {
         assert(block.proof() < POW_TARGET)
+        console.log('prev_id',block.prev_id)
+        console.log('new  id', this.blocks[this.blocks.length-1].id())
         assert(block.prev_id == this.blocks[this.blocks.length-1].id())
     }
 
     handle_block(block) {
+        console.log('validating block', block)
         this.validate_block(block)
 
 
@@ -242,14 +245,29 @@ class Node {
         this.blocks.push(block)
         
         logger.log('info', `Block accepted: height= ${this.blocks.length - 1}`)
+        logger.log('info', `Block accepted: height= ${this.blocks}`)
         //this.peer_addresses.map(send_message(peer_address, "block", block))
-        send_message(prepare_message('block'), 20001,  function (data) {
+        send_message(prepare_message('block'), this.peer_addresses.port,  function (data) {
             console.log('done', data)
         })
     
 
     }
-
+    
+    startWorker(path, cb) {
+        let block_id = node.blocks[node.blocks.length-1].id()
+        let w = new Worker(path, {workerData: {"block_id":block_id, "mempool": node.mempool}});
+        w.on('message', (msg) => {
+            cb(null, msg)
+        })
+        w.on('error', cb);
+        w.on('exit', (code) => {
+            if(code != 0)
+                  console.error(new Error(`Worker stopped with exit code ${code}`))
+       });
+        return w;
+    }
+    
 }
 function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amount) {
     sender_public_key = ec.keyFromPublic(sender_private_key.getPublic())
@@ -280,19 +298,13 @@ function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amou
 }
 
 
-function prepare_message(command, data) {
-    return {
-        "command": command,
-        "data": data
-    }
-}
 
 
 /*                   */
 /* Mining            */
 /*                   */
 
-DIFFICULTY_BITS = 20
+DIFFICULTY_BITS = 17
 POW_TARGET = 2 ** (256 - DIFFICULTY_BITS)
 
 
@@ -310,29 +322,15 @@ function mine_genesis_block() {
     let unmined_block = new Block([])
     mined_block = mine_block(unmined_block)
     node.blocks.push(mined_block)
-    let myWorker = startWorker(__dirname + '/minerCode.js', (err, result) => {
-        if(err) return console.error(err);
-        console.log("[[Heavy computation function finished]]")
-        console.log("First value is: ", result.val, result.block);
-        node.handle_block(new Block(result.block.txns, result.block.prev_id, result.block.nonce))
-    })
+    // let myWorker = startWorker(__dirname + '/minerCode.js', (err, result) => {
+    //     if(err) return console.error(err);
+    //     console.log("[[Heavy computation function finished]]")
+    //     console.log("First value is: ", result.val, result.block);
+    //     node.handle_block(new Block(result.block.txns, result.block.prev_id, result.block.nonce))
+    // })
 
-    //console.log(node.blocks)
 }
 
-function startWorker(path, cb) {
-    let block_id = node.blocks[node.blocks.length-1].id()
-	let w = new Worker(path, {workerData: {"block_id":block_id, "mempool": node.mempool}});
-	w.on('message', (msg) => {
-		cb(null, msg)
-	})
-	w.on('error', cb);
-	w.on('exit', (code) => {
-		if(code != 0)
-	      	console.error(new Error(`Worker stopped with exit code ${code}`))
-   });
-	return w;
-}
 
 
 
@@ -340,6 +338,12 @@ function startWorker(path, cb) {
 /* Networking        */
 /*                   */
 
+function prepare_message(command, data) {
+    return {
+        "command": command,
+        "data": data
+    }
+}
 
 
 function send_message(msg, port, cb) {
@@ -369,7 +373,6 @@ function send_message(msg, port, cb) {
 function serve(port) {
     logger.log('info','serve')
     
-    //port = 1999
     var server = net.createServer(function (socket) {
         cmd = ''
         socket.on('data', function (data) {
@@ -377,35 +380,35 @@ function serve(port) {
             textChunk = data.toString('utf8');
             obj = JSON.parse(textChunk)
             cmd = obj['command']
-            console.log('info',obj['command'])
-            if (obj['command'] == 'serve') {
+            logger.log('info',`received ${cmd}`)
+            if (cmd == 'serve') {
                 console.log('serve')
  
-            } else if (obj['command'] == 'ping') {
+            } else if (cmd == 'ping') {
 
                 response = JSON.stringify(prepare_message('pong'))
                 socket.write(response)
                 socket.end()
-            } else if (obj['command'] == "block") {
+            } else if (cmd == "block") {
                 logger.log('info', 'Handling a block')
                 if (obj['data']== node.blocks[node.blocks.length-1].id() ){
                     node.handle_block(obj['data'])
                 }
-            } else if (obj['command'].toString('utf8') == "balance") {
+            } else if (cmd == "balance") {
 
                 logger.log('info', `Providing ${obj['data']}'s balance.`)
                 let balance = bank.fetch_balance(ec.keyFromPublic(obj['data'], 'hex'))
                 response = JSON.stringify(prepare_message('balance-response', balance))
                 socket.write(response)
 
-            } else if (obj['command'].toString('utf8') == 'tx') {
+            } else if (cmd == 'tx') {
 
                 logger.log('info', `Performing ${obj['data']} transaction.`)
                 bank.handle_tx(Tx.parse(obj['data']))
                 response = JSON.stringify(prepare_message('tx-response', "accepted"))
                 socket.write(response)
 
-            } else if (obj['command'] == 'utxos') {
+            } else if (cmd == 'utxos') {
 
                 utxos = bank.fetch_utxos(ec.keyFromPublic(obj['data'], 'hex'))
                 response = JSON.stringify(prepare_message('utxos-response', JSON.stringify(utxos)))
@@ -427,12 +430,21 @@ function serve(port) {
 
     server.listen(port, '127.0.0.1');
 }
+
 if (args[2] == 'serve') {
     // command, bank id, port
     node = new Node(args[3])
     mine_genesis_block()
     serve(args[3])
+    // myWorker = startWorker(__dirname + '/minerCode.js', (err, result) => {
+    //     if(err) return console.error(err);
+    //     console.log("[[Heavy computation function finished]]")
+    //     console.log("First value is: ", result.val, result.block);
+    //     node.handle_block(new Block(result.block.txns, result.block.prev_id, result.block.nonce))
 
+    // })
+
+    //myWorker.postMessage({hello:"antonio"})
 
 
 } else if (args[2] == 'ping') {
@@ -468,12 +480,10 @@ if (args[2] == 'serve') {
             console.log('done', data2)
         })
     })
-
-
-
-
+} else if (!(args[1].search("minerCode.js") == -1)) {
+    logger.log('info', 'starting mining thread')
 } else {
-    console.log('Invalid cli command:', args[2])
+    console.log('Invalid cli command:', args[1], args[2])
 }
 
 module.exports.Tx = Tx
