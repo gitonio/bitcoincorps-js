@@ -1,8 +1,24 @@
 const {  parentPort, workerData } = require('worker_threads');
 const { Block } = require('./pow_syndacoin')
+var winston = require('winston')
 
 
-console.log("worder says node")
+
+
+
+let logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.printf(info => {
+            return `${info.timestamp} ${info.level}: ${info.message}`;
+        })
+    ),
+    transports: [new winston.transports.Console()]
+});
+
+
+logger.log("info", "miner: online")
 
 parentPort.on('message', (msg) => {
     console.log("Main thread finished on: ", msg.hello);
@@ -14,7 +30,6 @@ function mine_block(block) {
         block.nonce++
         //console.log(block.nonce)
     }
-    console.log('workder says block mined')
     return block
 }
 mine = true
@@ -28,7 +43,7 @@ mine = true
     mined_block = mine_block(unmined_block)
 
     if (mined_block) {
-        console.log('worker syas block mined', mined_block)
+        logger.log('info', 'miner: block mined', mined_block)
         parentPort.postMessage({ val: mined_block.nonce, block: mined_block });
         
     }
