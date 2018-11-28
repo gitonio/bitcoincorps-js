@@ -151,7 +151,7 @@ class Node {
         this.blocks = []
         this.utxo_set = new Map()
         this.mempool = []
-        this.peer_addresses = port == 20001 ? { "port": 20001 } : { "port": 20002 }
+        this.peer_addresses = env.process.PEERS.split(',').map(peer=>external_address(peer))
         this.myWorker = 'not set'
     }
 
@@ -252,7 +252,7 @@ class Node {
         logger.log('info', `Block accepted: height= ${this.blocks}`)
         //this.peer_addresses.map(send_message(peer_address, "block", block))
 
-        send_message(prepare_message('block'), this.peer_addresses.port, function (data) {
+        send_message(prepare_message('block'), this.peer_addresses[0], function (data) {
             console.log('done', data)
         })
 
@@ -322,7 +322,7 @@ function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amou
 /* Mining            */
 /*                   */
 
-DIFFICULTY_BITS = 17
+DIFFICULTY_BITS = 20
 POW_TARGET = 2 ** (256 - DIFFICULTY_BITS)
 
 
@@ -376,6 +376,12 @@ function send_message(msg, port, cb) {
     })
 
     client.on('end', () => console.log('client.end'))
+}
+
+function external_address(node) {
+    i = parseInt(node.substr(4,1),10)
+    port = PORT + i
+    return port
 }
 
 ///////////////

@@ -19,6 +19,7 @@ let logger = winston.createLogger({
 
 
 logger.log("info", "miner: online")
+logger.log("info", "pow target:", POW_TARGET)
 
 parentPort.on('message', (msg) => {
     console.log("Main thread finished on: ", msg.hello);

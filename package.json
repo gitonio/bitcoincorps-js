@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node --experimental-worker powcoin/pow_syndacoin serve 20001",
+    "start": "node --experimental-worker powcoin/pow_syndacoin serve 10000",
     "test": "mocha --grep three ",
     "testall": "mocha --grep --watch test_bank_balances_utxocoin"
   },
