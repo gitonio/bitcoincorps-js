@@ -15,6 +15,7 @@ const { Worker, isMainThread, parentPort, workerData } = require('worker_threads
 
 
 const PORT = 10000
+const BLOCK_SUBSIDY = 50
 node = ''
 
 let logger = winston.createLogger({
@@ -151,7 +152,8 @@ class Node {
         this.blocks = []
         this.utxo_set = new Map()
         this.mempool = []
-        this.peer_addresses = process.env.PEERS.split(',').map(peer=>external_address(peer))
+        //this.peer_addresses = process.env.PEERS.split(',').map(peer=>external_address(peer))
+        this.peer_addresses = ['10000','10001']
         this.myWorker = 'not set'
     }
 
@@ -217,6 +219,11 @@ class Node {
         assert(in_sum == out_sum)
     }
 
+    validate_coinbase(tx) {
+        assert( tx.tx_ins.length == tx.tx_outs.length == 1)
+        assert(tx.tx_outs['amount'] == BLOCK_SUBSIDY)
+    }
+
     handle_tx(tx) {
         try {
             this.validate_tx(tx)
@@ -230,8 +237,6 @@ class Node {
 
     validate_block(block) {
         assert(block.proof() < POW_TARGET)
-        console.log('prev_id', block.prev_id)
-        console.log('new  id', this.blocks[this.blocks.length - 1].id())
         if (block.prev_id == undefined) return
         assert(block.prev_id == this.blocks[this.blocks.length - 1].id())
     }
@@ -249,8 +254,8 @@ class Node {
         this.startMining()
 
         logger.log('info', `Block accepted: height= ${this.blocks.length - 1}`)
-        logger.log('info', `Block accepted: height= ${this.blocks}`)
-        logger.log('info', `Sending block to: peer= ${this.peer_addresses[0]}`)
+        //logger.log('info', `Block accepted: height= ${this.blocks}`)
+        //logger.log('info', `Sending block to: peer= ${this.peer_addresses[0]}`)
         //this.peer_addresses.map(send_message(peer_address, "block", block))
 
         send_message(prepare_message('block'), this.peer_addresses[0], function (data) {
@@ -316,14 +321,28 @@ function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amou
     return tx
 }
 
+function prepare_coinbase(public_key, tx_id='') {
+    if (tx_id == '') {
+        tx_id = uuidv1()
 
+    }
+    return new Tx( 
+        id = tx_id,
+        tx_ins = [
+            new TxIn()
+        ],
+        tx_outs = [
+            new TxOut(tx_id, 0, BLOCK_SUBSIDY, public_key)
+        ]
+    )
+}
 
 
 /*                   */
 /* Mining            */
 /*                   */
 
-DIFFICULTY_BITS = 20
+DIFFICULTY_BITS = 18
 POW_TARGET = 2 ** (256 - DIFFICULTY_BITS)
 
 
@@ -337,8 +356,9 @@ function mine_block(block) {
 }
 
 
-function mine_genesis_block() {
+function mine_genesis_block(public_key) {
     let unmined_block = new Block([])
+    let coinbase = prepare_coinbase(public_key, 'abc123')
     mined_block = mine_block(unmined_block)
     node.blocks.push(mined_block)
     //node.handle_block(mined_block)
@@ -389,8 +409,20 @@ function external_address(node) {
 ///////////////
 //   CLI    ///
 //////////////
+function lookup_private_key(name) {
+    exponent = {
+        "alice":1,
+        "bob":2,
+        "node0":3,
+        "node1":4,
+        "node2":5,
+    }[name]
+    return identities.user_private_key(name)
+}
 
-
+function lookup_public_key(name) {
+    return identities.user_public_key(name)
+}
 function serve() {
     logger.log('info', 'serve')
 
@@ -457,7 +489,8 @@ if (args[2] == 'serve') {
     // command, bank id, port
     serve()
     node = new Node(args[3])
-    mine_genesis_block()
+    mine_genesis_block(identities.user_public_key('alice'))
+
     node.startMining()
     // node.myWorker = myWorker
     //myWorker.postMessage({hello:"antonio"})
