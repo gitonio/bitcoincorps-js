@@ -57,6 +57,9 @@ class Tx {
         return public_key.verify(Buffer.from(message, 'ascii').toString('hex'), tx_in.signature)
     }
 
+    is_coinbase() {
+        return this.tx_ins[0].tx_id == ''
+    }
 
     static parse(tx) {
         let tx_ins = tx.tx_ins.map(x => {
@@ -70,6 +73,14 @@ class Tx {
         let newtx = new Tx(tx.id, tx_ins, tx_outs)
         return newtx
 
+    }
+
+    toJSON() {
+        return {
+        "id": this.id,
+        "tx_ins": this.tx_ins.map(x=>x.toJSON()),
+        "tx_outs": this.tx_outs.map(x=>x.toJSON())
+        } 
     }
 
 }
@@ -90,6 +101,13 @@ class TxIn {
         return { tx_id: this.tx_id, index: this.index }
     }
 
+    toJSON() {
+        return {
+            "tx_id": this.tx_id,
+            "index": this.index,
+            "signature": this.signature
+        }
+    }
 }
 
 class TxOut {
@@ -115,6 +133,10 @@ class TxOut {
     }
 }
 
+TxOut.prototype.toString = function () {
+    return `TxOut(tx_id=${this.tx_id}, index=${this.index}, amount=${this.amount})`
+}
+
 class Block {
     constructor(txns, prev_id, nonce = 0) {
         this.txns = txns,
@@ -134,9 +156,17 @@ class Block {
         return BigInt('0x' + this.id())
     }
 
+    toJSON() {
+        return {
+            "txns": this.txns.map(txn=>txn.toJSON()),
+            "prev_id": this.prev_id,
+            "nonce": this.nonce
+        }
+    }
+
     static parse(block) {
         let txns = block.txns.map(tx => Tx.parse(tx))
-        return new Block(txns, block.timestamp, block.signature)
+        return new Block(txns, block.prev_id, block.nonce)
     }
 }
 
@@ -153,7 +183,7 @@ class Node {
         this.utxo_set = new Map()
         this.mempool = []
         //this.peer_addresses = process.env.PEERS.split(',').map(peer=>external_address(peer))
-        this.peer_addresses = ['10000','10001']
+        this.peer_addresses = port == 'node1' ? 10000 : 10001
         this.myWorker = 'not set'
     }
 
@@ -174,11 +204,12 @@ class Node {
     }
 
     update_utxo_set(tx) {
+        // Save utxos which were just created
         tx.tx_outs.map(tx_out => {
-
             this.utxo_set.set(JSON.stringify(tx_out.outpoint()), tx_out)
         })
 
+        // Remove utxos that were just spent
         tx.tx_ins.map(tx_in => {
             this.utxo_set.delete(JSON.stringify(tx_in.outpoint()))
         })
@@ -221,7 +252,7 @@ class Node {
 
     validate_coinbase(tx) {
         assert( tx.tx_ins.length == tx.tx_outs.length == 1)
-        assert(tx.tx_outs['amount'] == BLOCK_SUBSIDY)
+        assert(tx.tx_outs[0].amount == BLOCK_SUBSIDY)
     }
 
     handle_tx(tx) {
@@ -242,23 +273,29 @@ class Node {
     }
 
     handle_block(block) {
-        console.log('validating block', block)
-        //this.validate_block(block)
 
+        // Check work, chain ordering
+        this.validate_block(block)
 
-        block.txns.map(tx => this.validate_tx(tx))
+        // Validate coinbase seperately
+        this.validate_coinbase(block.txns[0])
+
+        // Check the transactions are valid
+        block.txns.slice(1).map(tx => this.validate_tx(tx))
+
+        // If they are all good, update this.blocks and this.utxo_set
         block.txns.map(tx => this.update_utxo_set(tx))
 
+        // Add the block to our chain
         this.blocks.push(block)
 
+        // Once a block is found mining stopped so restart
         this.startMining()
 
         logger.log('info', `Block accepted: height= ${this.blocks.length - 1}`)
-        //logger.log('info', `Block accepted: height= ${this.blocks}`)
-        //logger.log('info', `Sending block to: peer= ${this.peer_addresses[0]}`)
-        //this.peer_addresses.map(send_message(peer_address, "block", block))
 
-        send_message(prepare_message('block'), this.peer_addresses[0], function (data) {
+        // Block propagation
+        send_message(prepare_message('block'), this.peer_addresses, function (data) {
             console.log('done', data)
         })
 
@@ -283,8 +320,11 @@ class Node {
         this.myWorker = this.startWorker(__dirname + '/minerCode.js', (err, result) => {
             if (err) return console.error(err);
             console.log("[[Heavy computation function finished]]")
-            console.log("First value is: ", result.val, result.block);
-            node.handle_block(new Block(result.block.txns, result.block.prev_id, result.block.nonce))
+            console.log("First value is: ", result.val);
+            let nb = Block.parse(result.block)
+            console.log('nb:' +nb.txns[0].tx_outs[0])
+            //node.handle_block(new Block(result.block.txns, result.block.prev_id, result.block.nonce))
+            node.handle_block(Block.parse(result.block))
         })
     
     }
@@ -342,7 +382,7 @@ function prepare_coinbase(public_key, tx_id='') {
 /* Mining            */
 /*                   */
 
-DIFFICULTY_BITS = 18
+DIFFICULTY_BITS = 19
 POW_TARGET = 2 ** (256 - DIFFICULTY_BITS)
 
 
@@ -357,11 +397,11 @@ function mine_block(block) {
 
 
 function mine_genesis_block(public_key) {
-    let unmined_block = new Block([])
     let coinbase = prepare_coinbase(public_key, 'abc123')
+    let unmined_block = new Block([coinbase],null,0)
     mined_block = mine_block(unmined_block)
     node.blocks.push(mined_block)
-    //node.handle_block(mined_block)
+    node.update_utxo_set(coinbase)
 
 }
 
@@ -423,9 +463,10 @@ function lookup_private_key(name) {
 function lookup_public_key(name) {
     return identities.user_public_key(name)
 }
-function serve() {
-    logger.log('info', 'serve')
-
+function serve(port) {
+    port = port == 'node0' ? 10000 : 10001
+    console.log('port', port)
+    logger.log('info', 'serve', port)
     var server = net.createServer(function (socket) {
         cmd = ''
         socket.on('data', function (data) {
@@ -451,7 +492,7 @@ function serve() {
             } else if (cmd == "balance") {
 
                 logger.log('info', `Providing ${obj['data']}'s balance.`)
-                let balance = bank.fetch_balance(ec.keyFromPublic(obj['data'], 'hex'))
+                let balance = node.fetch_balance(ec.keyFromPublic(obj['data'], 'hex'))
                 response = JSON.stringify(prepare_message('balance-response', balance))
                 socket.write(response)
 
@@ -482,12 +523,12 @@ function serve() {
         })
     });
 
-    server.listen(PORT, '127.0.0.1');
+    server.listen(port, '127.0.0.1');
 }
 
 if (args[2] == 'serve') {
     // command, bank id, port
-    serve()
+    serve(args[3])
     node = new Node(args[3])
     mine_genesis_block(identities.user_public_key('alice'))
 

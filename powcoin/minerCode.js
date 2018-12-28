@@ -53,17 +53,17 @@ mine = true
 //while (mine) {
     let coinbase = []
     coinbase.push(prepare_coinbase(identities.bank_public_key(0)))
-    console.log('info', coinbase.length)
+    //console.log('info', coinbase.length)
     unmined_block = new Block(
-        coinbase,
+        coinbase.concat(workerData.mempool),
         workerData.block_id,
         0
     )
     mined_block = mine_block(unmined_block)
 
     if (mined_block) {
-        logger.log('info', 'miner: block mined', unmined_block.toString(),'miner: end')
-        parentPort.postMessage({ val: mined_block.nonce, block: mined_block });
+        logger.log('info', 'miner: block mined','miner: end')
+        parentPort.postMessage({ val: mined_block.nonce, block:  mined_block.toJSON() });
         
     }
 //}
