@@ -1,0 +1,8 @@
+docker-compose up
+
+docker rm $(docker ps -a -q)
+
+docker image rm $(docker image ls -q)
+
+docker ps
+docker exec -it 4d786e0b0401 /bin/ash

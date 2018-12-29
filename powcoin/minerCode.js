@@ -35,7 +35,7 @@ let logger = winston.createLogger({
 
 
 logger.log("info", "miner: online")
-logger.log("info", "pow target:", POW_TARGET)
+logger.log("info", `pow target: ${ POW_TARGET }`)
 
 parentPort.on('message', (msg) => {
     console.log("Main thread finished on: ", msg.hello);
@@ -62,7 +62,7 @@ mine = true
     mined_block = mine_block(unmined_block)
 
     if (mined_block) {
-        logger.log('info', 'miner: block mined','miner: end')
+        //logger.log('info', 'miner: block mined','miner: end')
         parentPort.postMessage({ val: mined_block.nonce, block:  mined_block.toJSON() });
         
     }
