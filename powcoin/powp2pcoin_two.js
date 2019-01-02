@@ -16,7 +16,7 @@ const { Worker, isMainThread, parentPort, workerData } = require('worker_threads
 
 const PORT = 10000
 const BLOCK_SUBSIDY = 50
-node = ''
+let node = ''
 
 let logger = winston.createLogger({
     level: 'info',
@@ -77,10 +77,10 @@ class Tx {
 
     toJSON() {
         return {
-        "id": this.id,
-        "tx_ins": this.tx_ins.map(x=>x.toJSON()),
-        "tx_outs": this.tx_outs.map(x=>x.toJSON())
-        } 
+            "id": this.id,
+            "tx_ins": this.tx_ins.map(x => x.toJSON()),
+            "tx_outs": this.tx_outs.map(x => x.toJSON())
+        }
     }
 
 }
@@ -155,7 +155,7 @@ class Block {
 
     toJSON() {
         return {
-            "txns": this.txns.map(txn=>txn.toJSON()),
+            "txns": this.txns.map(txn => txn.toJSON()),
             "prev_id": this.prev_id,
             "nonce": this.nonce
         }
@@ -187,15 +187,19 @@ class Node {
         this.myWorker = 'not set'
     }
 
-    connect(peer) {
+    connect(node_name) {
+        let peer = parseInt(node_name[4]) + 10000
         if (!this.peers.includes(peer) && this.address != peer) {
             logger.log('info', `(handshake) Sent "connect" to ${peer}`)
-                send_message(prepare_message('connect'), peer, function (data) {
-                    console.log('done', data)
-                })
-            
-                            this.pending_peers.push(peer)
-                    
+            let response = {
+                node_name: this.address
+            }
+            send_message(prepare_message('connect', response), peer, function (data) {
+                console.log('done', data)
+            })
+
+            this.pending_peers.push(node_name)
+
         }
     }
     mempool_outpoints() {
@@ -261,7 +265,7 @@ class Node {
     }
 
     validate_coinbase(tx) {
-        assert( tx.tx_ins.length == tx.tx_outs.length == 1)
+        assert(tx.tx_ins.length == tx.tx_outs.length == 1)
         assert(tx.tx_outs[0].amount == BLOCK_SUBSIDY)
     }
 
@@ -273,11 +277,11 @@ class Node {
             throw "Tx validation errors"
         }
 
-        this.peers.map(peer=>       send_message(prepare_message('tx', tx), this.peer_addresses, function (data) {
+        this.peers.map(peer => send_message(prepare_message('tx', tx), this.peer_addresses, function (data) {
             console.log('done', data)
         })
 
-        
+
         )
 
     }
@@ -311,11 +315,11 @@ class Node {
         logger.log('info', `Block accepted: height= ${this.blocks.length - 1}`)
 
         // Block propagation
-        this.peers.map(peer=>       send_message(prepare_message('block', block), this.peer_addresses, function (data) {
+        this.peers.map(peer => send_message(prepare_message('block', block), this.peer_addresses, function (data) {
             console.log('done', data)
         })
 
-        
+
         )
 
 
@@ -341,11 +345,11 @@ class Node {
             console.log("[[Heavy computation function finished]]")
             console.log("First value is: ", result.val);
             let nb = Block.parse(result.block)
-            console.log('nb:' +nb.txns[0].tx_outs[0])
+            console.log('nb:' + nb.txns[0].tx_outs[0])
             //node.handle_block(new Block(result.block.txns, result.block.prev_id, result.block.nonce))
             node.handle_block(Block.parse(result.block))
         })
-    
+
     }
 
     stopMining() {
@@ -380,12 +384,12 @@ function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amou
     return tx
 }
 
-function prepare_coinbase(public_key, tx_id='') {
+function prepare_coinbase(public_key, tx_id = '') {
     if (tx_id == '') {
         tx_id = uuidv1()
 
     }
-    return new Tx( 
+    return new Tx(
         id = tx_id,
         tx_ins = [
             new TxIn()
@@ -417,7 +421,7 @@ function mine_block(block) {
 
 function mine_genesis_block(public_key) {
     let coinbase = prepare_coinbase(public_key, 'abc123')
-    let unmined_block = new Block([coinbase],null,0)
+    let unmined_block = new Block([coinbase], null, 0)
     mined_block = mine_block(unmined_block)
     node.blocks.push(mined_block)
     node.update_utxo_set(coinbase)
@@ -444,7 +448,7 @@ function send_message(msg, port, cb) {
 
     var client = net.connect(port, '127.0.0.1', function () {
         logger.log('info', `client connected to ${port}`)
-     })
+    })
 
     client.write(msg)
 
@@ -461,7 +465,7 @@ function send_message(msg, port, cb) {
 }
 
 function external_address(node) {
-    i = parseInt(node.substr(4,1),10)
+    i = parseInt(node.substr(4, 1), 10)
     port = PORT + i
     return port
 }
@@ -469,13 +473,16 @@ function external_address(node) {
 ///////////////
 //   CLI    ///
 //////////////
+
+//let node = ''
+
 function lookup_private_key(name) {
     exponent = {
-        "alice":1,
-        "bob":2,
-        "node0":3,
-        "node1":4,
-        "node2":5,
+        "alice": 1,
+        "bob": 2,
+        "node0": 3,
+        "node1": 4,
+        "node2": 5,
     }[name]
     return identities.user_private_key(name)
 }
@@ -483,13 +490,12 @@ function lookup_private_key(name) {
 function lookup_public_key(name) {
     return identities.user_public_key(name)
 }
-function serve(port) {
-    rport = port == 'node1' ? 10000 : 10001 
-    port = port == 'node0' ? 10000 : 10001
+function serve(node_name) {
+//    remote_port = node_name == 'node1' ? 10000 : 10001
+    home_port = parseInt(node_name[4]) + 10000
 
-    console.log('port', port)
 
-    logger.log('info', `serving ${port}`)
+    logger.log('info', `serving ${home_port}`)
     var server = net.createServer(function (socket) {
         cmd = ''
         socket.on('data', function (data) {
@@ -497,8 +503,10 @@ function serve(port) {
             textChunk = data.toString('utf8');
             obj = JSON.parse(textChunk)
             cmd = obj['command']
-            logger.log('info', `received ${cmd}`)
-            let peer = rport
+            logger.log('info', `received ${cmd} from ${obj['data'].node_name}`)
+            let peer = obj['data'].node_name
+            remote_port = parseInt(peer[4]) + 10000
+            console.log('remote_port', peer, peer[4], remote_port)
             if (cmd == 'connect') {
                 if (!node.pending_peers.includes(peer) && !node.peers.includes(peer)) {
                     node.pending_peers.push(peer)
@@ -506,29 +514,44 @@ function serve(port) {
                     // response = JSON.stringify(prepare_message('connect-response'))
                     // socket.write(response)
                     // socket.end()
-                    send_message(prepare_message('connect-response'), rport, function (data) {
+                    let response = {
+                        node_name: node_name
+                    }
+                    send_message(prepare_message('connect-response', response), remote_port, function (data) {
                         console.log('done', data)
                     })
-                                }
+                }
             } else if (cmd == 'connect-response') {
                 if (node.pending_peers.includes(peer) && !node.peers.includes(peer)) {
-                    node.pending_peers.splice(node.pending_peers.indexOf(peer),1)
+                    node.pending_peers.splice(node.pending_peers.indexOf(peer), 1)
                     node.peers.push(peer)
                     logger.log('info', `(handshake) Connected to ${peer}`)
-                    response = JSON.stringify(prepare_message('connect-response'))
-                    socket.write(response)
-                    socket.end()
+                    let response = {
+                        node_name: node_name
+                    }
+                    send_message(prepare_message('connect-response', response), remote_port, function (data) {
+                        console.log('done', data)
+                    })
+                    send_message(prepare_message('peers', response), remote_port, function (data) {
+                        console.log('done', data)
+                    })
 
                 } else {
-                    
+                    console.log('in else')
+                    console.log(node.pending_peers)
                 }
             } else if (cmd == 'peers') {
-                response = JSON.stringify(prepare_message('peers-response', node.peers))
-                socket.write(response)
-                socket.end()
+                let peer_response = {
+                    node_name:node_name,
+                    peers: node.peers
+                }
+                send_message(prepare_message('peers-response', peer_response), remote_port, function (data) {
+                    console.log('done', data)
+                })
 
             } else if (cmd == 'peers-response') {
                 console.log(obj['data'])
+                obj['data'].peers.map(peer=> node.connect(peer))
             } else if (cmd == 'ping') {
 
                 response = JSON.stringify(prepare_message('pong'))
@@ -574,7 +597,7 @@ function serve(port) {
         })
     });
 
-    server.listen(port, '127.0.0.1');
+    server.listen(home_port, '127.0.0.1');
 }
 
 if (args[2] == 'serve') {
@@ -585,17 +608,22 @@ if (args[2] == 'serve') {
 
     //node.startMining()
 
-   //node.connect(    node.address == 'node1' ? 10000 : 10001)
+    //node.connect(    node.address == 'node1' ? 10000 : 10001)
     // node.myWorker = myWorker
     //myWorker.postMessage({hello:"antonio"})
 
-    setTimeout(function() {
+    setTimeout(function () {
         //send_message(prepare_message('ping'), node.address == 'node1' ? 10000 : 10001, function (data) {
-          //  console.log('done', data)
+        //  console.log('done', data)
         //})
-            node.connect(    node.address == 'node1' ? 10000 : 10001)
-           
-            }, 10000)
+        if (node.address != 'node0') {
+            //node.connect(    node.address == 'node1' ? 10000 : 10001)
+            node.connect('node0')
+        }
+
+
+
+    }, 10000)
 
 
 } else if (args[2] == 'ping') {
