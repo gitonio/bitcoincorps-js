@@ -16,6 +16,7 @@ const { Worker, isMainThread, parentPort, workerData } = require('worker_threads
 
 const PORT = 10000
 const BLOCK_SUBSIDY = 50
+const GET_BLOCKS_CHUNK = 10
 let node = ''
 
 let logger = winston.createLogger({
@@ -201,6 +202,21 @@ class Node {
             this.pending_peers.push(node_name)
 
         }
+    }
+
+    sync() {
+        let blocks = this.blocks.slice(this.blocks.length-GET_BLOCKS_CHUNK)
+        let block_ids = blocks.map(block => block.id())
+        this.peers.map(peer => {
+            let response = {
+                node_name: this.address,
+                block_ids: block_ids
+            }
+            send_message(prepare_message('sync', response), peer, function (data) {
+                console.log('done', data)
+            })
+
+        })
     }
     mempool_outpoints() {
         return this.mempool.map(tx => tx.map(x => tx_in.outpoint = x))
@@ -555,6 +571,17 @@ function serve(node_name) {
                         node.connect(peer)
                     }
                 })
+
+            } else if (cmd == 'blocks') {
+                obj['data'].blocks.map(block => {
+                    node.stopMining()
+                    node.handle_block(block)
+                })
+
+                if (obj['data'].blocks.length == GET_BLOCKS_CHUNK) {
+                    node.sync()
+                }
+
             } else if (cmd == 'ping') {
 
                 response = JSON.stringify(prepare_message('pong'))
@@ -609,7 +636,6 @@ if (args[2] == 'serve') {
     node = new Node(args[3])
     mine_genesis_block(identities.user_public_key('alice'))
 
-    //node.startMining()
 
     //node.connect(    node.address == 'node1' ? 10000 : 10001)
     // node.myWorker = myWorker
@@ -628,6 +654,9 @@ if (args[2] == 'serve') {
 
     }, 10000)
 
+    node.sync()
+
+    node.startMining()
 
 } else if (args[2] == 'ping') {
     send_message(prepare_message('ping'), args[3], function (data) {
