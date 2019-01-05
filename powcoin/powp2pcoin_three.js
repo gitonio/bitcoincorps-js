@@ -305,7 +305,7 @@ class Node {
     validate_block(block) {
         assert(block.proof() < POW_TARGET)
         if (block.prev_id == undefined) return
-        assert(block.prev_id == this.blocks[this.blocks.length - 1].id())
+        //assert(block.prev_id == this.blocks[this.blocks.length - 1].id())
     }
 
     handle_block(block) {
@@ -331,7 +331,12 @@ class Node {
         logger.log('info', `Block accepted: height= ${this.blocks.length - 1}`)
 
         // Block propagation
-        this.peers.map(peer => send_message(prepare_message('block', block), this.peer_addresses, function (data) {
+        let response = {
+            node_name: this.address,
+            blocks: [block]
+        }
+
+        this.peers.map(peer => send_message(prepare_message('blocks', response), this.peer_addresses, function (data) {
             console.log('done', data)
         })
 
@@ -369,7 +374,8 @@ class Node {
     }
 
     stopMining() {
-        this.myWorker.terminate()
+        //this.myWorker.terminate()
+        this.myWorker.unref()
     }
 }
 function prepare_simple_tx(utxos, sender_private_key, recipient_public_key, amount) {
@@ -573,9 +579,12 @@ function serve(node_name) {
                 })
 
             } else if (cmd == 'blocks') {
-                obj['data'].blocks.map(block => {
+                logger.log('info',  ' Handling a blocks')
+                //console.log(obj['data'])
                     node.stopMining()
-                    node.handle_block(block)
+                obj['data'].blocks.map(block => {
+                    console.log(block)
+                    node.handle_block(Block.parse(block))
                 })
 
                 if (obj['data'].blocks.length == GET_BLOCKS_CHUNK) {
